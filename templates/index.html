@@ -2635,8 +2635,8 @@ M  END`
                 textElement.textContent = formattedJson;
                 container.style.display = 'block';
                 
-                // Scroll to the raw output box
-                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Auto-scrolling disabled - raw output will appear without scrolling
+                // container.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
         
@@ -2653,10 +2653,10 @@ M  END`
                     button.textContent = isVisible ? '📋 Show Raw Output' : '❌ Hide Raw Output';
                 }
                 
-                // Scroll to the raw output if showing
-                if (!isVisible) {
-                    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
+                // Auto-scrolling disabled - raw output toggle won't scroll
+                // if (!isVisible) {
+                //     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // }
             }
         }
         
