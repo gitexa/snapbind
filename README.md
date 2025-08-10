@@ -1,6 +1,6 @@
 # SnapBind 🧬
 
-![SnapBind Demo](videos/snapbind.gif)
+![SnapBind Demo](video/snapbind.gif)
 
 **Advanced Protein Binding Site Prediction with Deep Learning**
 
