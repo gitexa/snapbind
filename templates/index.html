@@ -612,7 +612,7 @@
         
         .cnn-plot-panel {
             flex: 1;
-            min-height: 300px;
+            min-height: 500px; /* Increased from 300px */
         }
         
         .sequence-heatmap {
@@ -733,13 +733,14 @@
         
         .cnn-plot-container {
             width: 100%;
-            height: 250px;
+            height: 450px; /* Increased from 250px */
             background: rgba(255, 255, 255, 0.02);
             border-radius: 12px;
             padding: 16px;
             display: flex;
             flex-direction: column;
             position: relative;
+            overflow: auto; /* Allow scrolling if needed */
         }
         
         .plot-header {
@@ -844,7 +845,7 @@
     <div class="container">
         <div class="header">
             <h1>🧬 SnapBind</h1>
-            <p>AI-powered binding site analysis platform</p>
+            <p>AI-powered ultra-fast binding site analysis platform</p>
         </div>
         
         <div class="main-content">
@@ -901,19 +902,27 @@
                                     <div class="plot-placeholder">Sequence heatmap will appear here after prediction</div>
                                 </div>
                                 <div class="heatmap-legend">
-                                    <div class="legend-item">
-                                        <div class="legend-color binding-probability-0"></div>
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <span style="font-size: 0.8rem; color: rgba(255,255,255,0.8);">0%</span>
+                                        <div style="flex: 1; height: 12px; background: linear-gradient(to right, 
+                                            rgba(255, 255, 255, 0.9) 0%, 
+                                            rgba(255, 200, 200, 0.9) 25%, 
+                                            rgba(255, 150, 150, 0.9) 50%, 
+                                            rgba(255, 100, 100, 0.9) 75%, 
+                                            rgba(255, 0, 0, 0.9) 100%); 
+                                            border-radius: 6px; border: 1px solid rgba(255,255,255,0.3);"></div>
+                                        <span style="font-size: 0.8rem; color: rgba(255,255,255,0.8);">100%</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; color: rgba(255,255,255,0.6);">
+                                        <span>No Binding</span>
                                         <span>Low</span>
-                                    </div>
-                                    <div class="legend-item">
-                                        <div class="legend-color binding-probability-5"></div>
-                                        <span>Med</span>
-                                    </div>
-                                    <div class="legend-item">
-                                        <div class="legend-color binding-probability-10"></div>
+                                        <span>Medium</span>
                                         <span>High</span>
+                                        <span>Very High</span>
                                     </div>
-                                    <span style="margin-left: auto;">Binding Probability</span>
+                                    <div style="text-align: center; margin-top: 8px;">
+                                        <span style="font-size: 0.8rem; color: rgba(255,255,255,0.8); font-weight: 500;">Binding Probability</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -952,11 +961,6 @@
                                     <div>3D structure will appear here after prediction</div>
                                 </div>
                             </div>
-                        </div>
-                        <div id="bindingSiteLegend" style="margin-top: 12px; font-size: 0.8rem; color: rgba(255, 255, 255, 0.6); text-align: center; display: none;">
-                            <span style="color: #ff6b6b;">●</span> High binding probability <br>
-                            <span style="color: #00d4ff;">●</span> Medium binding probability <br>
-                            <span style="color: #ffffff;">●</span> Low binding probability
                         </div>
                     </div>
                 </div>
@@ -1504,14 +1508,9 @@ M  END`
             // Hide initial waiting message and show structure controls
             const structureWaiting = document.getElementById('structureWaiting');
             if (structureWaiting) structureWaiting.style.display = 'none';
-            
+
             const moleculeControls = document.getElementById('moleculeControls');
-            if (moleculeControls) moleculeControls.style.display = 'block';
-            
-            const bindingSiteLegend = document.getElementById('bindingSiteLegend');
-            if (bindingSiteLegend) bindingSiteLegend.style.display = 'block';
-            
-            // Update heatmap
+            if (moleculeControls) moleculeControls.style.display = 'block';            // Update heatmap
             console.log('Updating sequence heatmap with sequence:', inputData.sequence);
             console.log('Binding sites:', result.binding_sites);
             updateSequenceHeatmap(inputData.sequence, result.binding_sites || []);
@@ -1562,45 +1561,255 @@ M  END`
             });
             
             // Update title
-            heatmapTitle.textContent = 'Amino Acid Sequence';
+            heatmapTitle.textContent = 'Amino Acid Sequence - Continuous Binding Probability';
             
-            // Generate heatmap HTML
+            // Helper function to get continuous color based on probability
+            function getHeatmapColor(probability) {
+                // Create a simple white-to-red gradient
+                const normalizedProb = Math.max(0, Math.min(1, probability)); // Clamp between 0 and 1
+                
+                if (normalizedProb === 0) {
+                    return 'rgba(255, 255, 255, 0.9)'; // White for no binding
+                }
+                
+                // Simple white to red interpolation
+                const intensity = normalizedProb;
+                const r = 255; // Red stays at max
+                const g = Math.floor(255 * (1 - intensity)); // Green decreases as probability increases
+                const b = Math.floor(255 * (1 - intensity)); // Blue decreases as probability increases
+                
+                return `rgba(${r}, ${g}, ${b}, 0.9)`;
+            }
+            
+            // Generate continuous heatmap HTML
             let heatmapHTML = '';
             for (let i = 0; i < sequence.length; i++) {
                 const position = i + 1;
                 const aminoAcid = sequence[i];
                 const probability = bindingMap[position] || 0;
-                const intensity = Math.min(probability * 255, 255);
-                const backgroundColor = probability > 0 ? `rgba(255, 0, 0, ${probability})` : 'rgba(255, 255, 255, 0.1)';
+                const backgroundColor = getHeatmapColor(probability);
+                const textColor = probability > 0.5 ? 'white' : 'black';
                 
-                heatmapHTML += `<span class="amino-acid" style="background-color: ${backgroundColor}; color: ${probability > 0.5 ? 'white' : 'rgba(255, 255, 255, 0.8)'};" title="Position ${position}: ${aminoAcid} (${(probability * 100).toFixed(1)}%)">${aminoAcid}</span>`;
+                heatmapHTML += `<span class="amino-acid" style="background-color: ${backgroundColor}; color: ${textColor}; border: 1px solid rgba(0,0,0,0.1); margin: 1px; padding: 2px 4px; display: inline-block; min-width: 20px; text-align: center; font-family: monospace; font-size: 12px;" title="Position ${position}: ${aminoAcid} - Binding Probability: ${(probability * 100).toFixed(1)}%">${aminoAcid}</span>`;
                 
-                // Add line break every 60 characters
-                if ((i + 1) % 60 === 0) {
+                // Add line break every 50 characters for better visualization
+                if ((i + 1) % 50 === 0) {
                     heatmapHTML += '<br>';
                 }
             }
             
+            // Add enhanced color legend
+            heatmapHTML += '<div style="margin-top: 20px; padding: 15px; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; background: rgba(0,0,0,0.1);">';
+            heatmapHTML += '<div style="font-weight: bold; margin-bottom: 10px; color: rgba(255,255,255,0.9);">Continuous Binding Probability Heatmap Legend</div>';
+            
+            // Create smooth gradient bar
+            heatmapHTML += '<div style="margin-bottom: 10px;">';
+            heatmapHTML += '<div style="height: 25px; background: linear-gradient(to right, ';
+            
+            // Generate gradient stops
+            const gradientStops = [];
+            for (let i = 0; i <= 20; i++) {
+                const prob = i / 20;
+                const color = getHeatmapColor(prob);
+                gradientStops.push(`${color} ${(prob * 100)}%`);
+            }
+            heatmapHTML += gradientStops.join(', ');
+            
+            heatmapHTML += '); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px;"></div>';
+            
+            // Add percentage markers
+            heatmapHTML += '<div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 5px; color: rgba(255,255,255,0.8);">';
+            heatmapHTML += '<span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>';
+            heatmapHTML += '</div>';
+            heatmapHTML += '</div>';
+            
+            // Add color range descriptions
+            heatmapHTML += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; font-size: 11px;">';
+            
+            const colorRanges = [
+                { range: '0%', color: getHeatmapColor(0), desc: 'No Binding' },
+                { range: '1-25%', color: getHeatmapColor(0.125), desc: 'Low Binding' },
+                { range: '25-50%', color: getHeatmapColor(0.375), desc: 'Medium Binding' },
+                { range: '50-75%', color: getHeatmapColor(0.625), desc: 'High Binding' },
+                { range: '75-100%', color: getHeatmapColor(0.875), desc: 'Very High Binding' }
+            ];
+            
+            colorRanges.forEach(item => {
+                heatmapHTML += `<div style="display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 4px; background: rgba(255,255,255,0.05);">`;
+                heatmapHTML += `<div style="width: 16px; height: 16px; background-color: ${item.color}; border: 1px solid rgba(255,255,255,0.3); border-radius: 2px; flex-shrink: 0;"></div>`;
+                heatmapHTML += `<div style="color: rgba(255,255,255,0.9);">`;
+                heatmapHTML += `<div style="font-weight: 500;">${item.desc}</div>`;
+                heatmapHTML += `<div style="font-size: 9px; opacity: 0.7;">${item.range}</div>`;
+                heatmapHTML += `</div></div>`;
+            });
+            
+            heatmapHTML += '</div>';
+            heatmapHTML += '</div>';
+            
             heatmapSequence.innerHTML = heatmapHTML;
             
-            // Update stats
+            // Calculate enhanced stats
             const bindingSiteCount = bindingSites.length;
-            const coverage = ((bindingSiteCount / sequence.length) * 100).toFixed(1);
-            heatmapStats.textContent = `${bindingSiteCount} binding sites identified (${coverage}% coverage)`;
+            const highConfidenceSites = bindingSites.filter(site => site.probability > 0.7).length;
+            const averageProbability = bindingSites.length > 0 ? 
+                (bindingSites.reduce((sum, site) => sum + site.probability, 0) / bindingSites.length * 100).toFixed(1) : 0;
+            
+            heatmapStats.textContent = `${bindingSiteCount} binding sites | ${highConfidenceSites} high confidence (>70%) | Avg probability: ${averageProbability}%`;
         }
         
         function updateCNNPlot(result) {
-            const cnnPlot = document.getElementById('cnnPlot');
-            if (cnnPlot && result.cnn_plot) {
-                cnnPlot.src = 'data:image/png;base64,' + result.cnn_plot;
-                cnnPlot.style.display = 'block';
+            console.log('updateCNNPlot called with result:', result);
+            const plotImageContainer = document.getElementById('plotImageContainer');
+            console.log('plotImageContainer element:', plotImageContainer);
+            console.log('result.cnn_plot exists:', !!result.cnn_plot);
+            
+            if (plotImageContainer && result.cnn_plot) {
+                console.log('Setting plot image in container');
+                plotImageContainer.innerHTML = `<img src='data:image/png;base64,${result.cnn_plot}' alt='CNN Prediction Plot' style='width:100%; height:auto; border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);' />`;
+            } else {
+                console.log('Missing element or plot data');
             }
         }
         
         function update3DStructure(sequence, bindingSites) {
             console.log('update3DStructure called', sequence, bindingSites);
-            // This would be implemented with 3Dmol.js
-            // For now, just log that it was called
+            
+            // Show the protein structure panel controls
+            const structureWaiting = document.getElementById('structureWaiting');
+            const moleculeControls = document.getElementById('moleculeControls');
+            
+            if (structureWaiting) structureWaiting.style.display = 'none';
+            if (moleculeControls) moleculeControls.style.display = 'block';
+            
+            // Load a random protein structure from the server
+            loadRandomProteinStructure(bindingSites);
+        }
+        
+        function loadRandomProteinStructure(bindingSites = []) {
+            if (!proteinViewer) {
+                console.error('Protein viewer not initialized');
+                return;
+            }
+            
+            console.log('Loading random protein structure...');
+            
+            // Get random protein structure from server
+            fetch('/random_protein')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const structureUrl = data.protein_structure.url;
+                        console.log('Loading protein structure from:', structureUrl);
+                        
+                        // Clear existing structure
+                        proteinViewer.clear();
+                        
+                        // Load the protein structure from our server
+                        fetch(structureUrl)
+                            .then(response => response.text())
+                            .then(pdbData => {
+                                // Add the PDB data to the viewer
+                                proteinViewer.addModel(pdbData, 'pdb');
+                                
+                                // Style the protein
+                                proteinViewer.setStyle({}, {
+                                    cartoon: {
+                                        color: 'spectrum',
+                                        opacity: 0.8
+                                    }
+                                });
+                                
+                                // Highlight alpha helices
+                                proteinViewer.setStyle({ss: 'h'}, {
+                                    cartoon: {
+                                        color: '#ff6b6b',
+                                        opacity: 0.9
+                                    }
+                                });
+                                
+                                // Highlight beta sheets
+                                proteinViewer.setStyle({ss: 's'}, {
+                                    cartoon: {
+                                        color: '#4ecdc4',
+                                        opacity: 0.9
+                                    }
+                                });
+                                
+                                // If we have binding sites, highlight them
+                                if (bindingSites && bindingSites.length > 0) {
+                                    highlightBindingSites(bindingSites);
+                                }
+                                
+                                // Center and render
+                                proteinViewer.zoomTo();
+                                proteinViewer.render();
+                                
+                                // Add rotation animation
+                                if (window.proteinRotationInterval) {
+                                    clearInterval(window.proteinRotationInterval);
+                                }
+                                window.proteinRotationInterval = setInterval(() => {
+                                    proteinViewer.rotate(1, 'y');
+                                    proteinViewer.render();
+                                }, 50);
+                                
+                                console.log('Protein structure loaded successfully:', data.protein_structure.name);
+                            })
+                            .catch(error => {
+                                console.error('Error loading protein structure:', error);
+                                // Fallback to a PDB ID if local files fail
+                                loadFallbackProtein();
+                            });
+                    } else {
+                        console.error('Failed to get random protein:', data.error);
+                        loadFallbackProtein();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching random protein:', error);
+                    loadFallbackProtein();
+                });
+        }
+        
+        function loadFallbackProtein() {
+            console.log('Loading fallback protein structure...');
+            // Fallback to a known PDB structure
+            const fallbackProteins = ['1crn', '1ubq', '1mbn', '2gbp', '1bpi'];
+            const randomProtein = fallbackProteins[Math.floor(Math.random() * fallbackProteins.length)];
+            loadProtein(randomProtein);
+        }
+        
+        function highlightBindingSites(bindingSites) {
+            // Highlight binding sites with high probability
+            bindingSites.forEach(site => {
+                if (site.probability > 0.7) {
+                    // Highlight high probability binding sites in red
+                    proteinViewer.setStyle({resi: site.position}, {
+                        stick: {
+                            color: '#ff0000',
+                            radius: 0.3
+                        },
+                        sphere: {
+                            color: '#ff0000',
+                            radius: 0.8,
+                            opacity: 0.6
+                        }
+                    });
+                } else if (site.probability > 0.5) {
+                    // Highlight medium probability binding sites in yellow
+                    proteinViewer.setStyle({resi: site.position}, {
+                        stick: {
+                            color: '#ffff00',
+                            radius: 0.2
+                        },
+                        sphere: {
+                            color: '#ffff00',
+                            radius: 0.6,
+                            opacity: 0.4
+                        }
+                    });
+                }
+            });
         }
         
     </script>
