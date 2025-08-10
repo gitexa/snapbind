@@ -21,9 +21,11 @@
 \maketitle
 \vspace{-0.3cm}
 
-\begin{multicols}{2}
+\begin{multicols}{2} 
 
-\section*{Abstract:} We present \textit{SnapBind}, a lightweight CNN (0.5M parameters) for predicting protein druggability and binding pockets from amino acid sequences. Using 100k protein-ligand pairs from BindingDB, our model enables local deployment for high-throughput screening without expensive computational infrastructure.
+\section{Challenge Tackled}
+Accurate protein AI models are costly in time and computational resources. \textit{SnapBind} addresses these challenges by providing a lightweight architecture that maintains high performance while being efficient enough for local deployment.
+We provide high-throughput protein screening, binding site localization, academic accessibility without proprietary platforms and a local computational pipeline integration.
 
 \section{Methods}
 
@@ -33,11 +35,11 @@
 
 \noindent \quad \textbf{Training:} Batch size 32, AdamW (lr=2e-4), focal loss (α=1, γ=2) for class imbalance, early stopping, Apple Silicon GPU acceleration.
 
-\section{Progressive Design}
+\section{What Worked Well}
 
-Three-pass architecture: (1) Sequence-based CNN for druggability, (2) ESM embeddings for evolutionary context, (3) SMILES integration for small-molecule ligand-specific predictions.
+Data Acquisition and the Training Pipeline \\
 
-\section{Results}
+Three-pass architecture: (1) Sequence-based CNN for druggability, (2) ESM embeddings for evolutionary context, (3) SMILES integration for small-molecule ligand-specific predictions.\\
 
 \textbf{Efficiency:} 0.5M parameters enable consumer hardware deployment with rapid batch processing and local execution. \\
 
@@ -49,9 +51,19 @@ Three-pass architecture: (1) Sequence-based CNN for druggability, (2) ESM embedd
 \textbf{Figure 1:} Score distribution for ground truth.
 \end{center}
 
-\section{Applications}
+\section{What Was Challenging}
+Balancing model complexity with performance was a key challenge. While we aimed for a lightweight architecture, ensuring sufficient representational power to capture intricate protein-ligand interactions required careful design choices.
 
-High-throughput protein screening, binding site localization, academic accessibility without proprietary platforms, local computational pipeline integration.
+Front-end integration paired with a meaningful design philosophy required a lot of iterative refinement to achieve a user-friendly experience.
+
+\section{Time Spent}
+\begin{itemize}
+    \item 0 - 1 h: Deciding on specific problem and first approach
+    \item 1 - 5 h: Shared responsibilities - Data processing, different model architectures and benchmarking
+    \item 5 - 10 h: Shared responsibilities - Model training, evaluation, and hyperparameter tuning, first steps towards integration
+    \item 10 - 15 h: Shared responsibilities - Front-end integration, user interface design, and presentation
+\end{itemize}
+
 
 \section{Conclusion}
 
