@@ -291,36 +291,6 @@ def batch_get_binding_arrays(
     return results
 
 
-# # Convert to pandas DataFrame for analysis
-# probabilities, sequence = get_binding_arrays(
-#     "RDPTQFEERHLKFLQQLGKGNFGSVEMCRYDPLQDNTGEVVAVKKLQHSTEEHLRDFEREIEILKSLQHDNIVKYKGVCYSAGRRNLKLIMEYLPYGSLRDYLQKHKERIDHIKLLQYTSQICKGMEYLGTKRYIHRDLATRNILVENENRVKIGDFGLTKVLPQDKEKVKEPGESPIFWYAPESLTESKFSVASDVWSFGVVLYELFTYIEKSKSPPAEFMRMIGNDKQGQMIVFHLIELLKNNGRLPRPDGCPDEIYMIMTECWNNNVNQRPSFRDLALRVDQIRDNMA"
-# )
-
-
-# Simple usage
-sequence = "RDPTQFEERHLKFLQQLGKGNFGSVEMCRYDPLQDNTGEVVAVKKLQHSTEEHLRDFEREIEILKSLQHDNIVKYKGVCYSAGRRNLKLIMEYLPYGSLRDYLQKHKERIDHIKLLQYTSQICKGMEYLGTKRYIHRDLATRNILVENENRVKIGDFGLTKVLPQDKEKVKEPGESPIFWYAPESLTESKFSVASDVWSFGVVLYELFTYIEKSKSPPAEFMRMIGNDKQGQMIVFHLIELLKNNGRLPRPDGCPDEIYMIMTECWNNNVNQRPSFRDLALRVDQIRDNMA"
-path_model_ckp = (
-    "/Users/alex-mac/Programming/hackathon/checkpoinits/best_binding_model.pth"
-)
-device = torch.device(
-    "mps"
-    if torch.backends.mps.is_available()
-    else "cuda" if torch.cuda.is_available() else "cpu"
-)
-
-# print(probabilities, sequence)
-
-# df = pd.DataFrame(
-#     {
-#         "position": range(1, len(sequence) + 1),
-#         "amino_acid": sequence,
-#         "binding_probability": probabilities,
-#         "is_binding": probabilities > 0.5,
-#     }
-# )
-# print(df.head())
-
-
 def plot_binding_probabilities(probabilities, sequence):
 
     plt.figure(
@@ -367,6 +337,15 @@ def plot_binding_probabilities(probabilities, sequence):
 
     return plt
 
+
+if __name__ == "__main__":
+    sequence = "RDPTQFEERHLKFLQQLGKGNFGSVEMCRYDPLQDNTGEVVAVKKLQHSTEEHLRDFEREIEILKSLQHDNIVKYKGVCYSAGRRNLKLIMEYLPYGSLRDYLQKHKERIDHIKLLQYTSQICKGMEYLGTKRYIHRDLATRNILVENENRVKIGDFGLTKVLPQDKEKVKEPGESPIFWYAPESLTESKFSVASDVWSFGVVLYELFTYIEKSKSPPAEFMRMIGNDKQGQMIVFHLIELLKNNGRLPRPDGCPDEIYMIMTECWNNNVNQRPSFRDLALRVDQIRDNMA"
+    path_model_ckp = "checkpoints/best_binding_model.pth"
+    device = torch.device(
+        "mps"
+        if torch.backends.mps.is_available()
+        else "cuda" if torch.cuda.is_available() else "cpu"
+    )
 
 probabilities, sequence_array = get_binding_arrays(
     protein_sequence=sequence,
