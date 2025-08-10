@@ -6,7 +6,46 @@
     <title>SnapBind</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- 3Dmol.js for molecular visualization -->
-    <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+    <script src="https://3Dmol.org/build/3Dmol-min.js" 
+            onerror="console.error('Failed to load 3Dmol.js from primary CDN'); loadBackup3Dmol();"></script>
+    <script>
+        // Backup loader for 3Dmol.js
+        function loadBackup3Dmol() {
+            console.log('Loading 3Dmol.js from backup CDN...');
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/3dmol@latest/build/3Dmol-min.js';
+            script.onerror = function() {
+                console.error('Failed to load 3Dmol.js from backup CDN');
+                // Show error message to user
+                const proteinElement = document.getElementById('protein-viewer');
+                if (proteinElement) {
+                    proteinElement.innerHTML = '<div style="color: red; text-align: center; padding: 20px;">Failed to load 3D visualization library</div>';
+                }
+            };
+            script.onload = function() {
+                console.log('3Dmol.js loaded from backup CDN');
+                // Re-initialize if needed
+                if (typeof initializeViewers === 'function') {
+                    initializeViewers();
+                }
+            };
+            document.head.appendChild(script);
+        }
+        
+        // Check if 3Dmol loaded successfully
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof $3Dmol === 'undefined') {
+                    console.error('3Dmol.js not loaded, trying backup...');
+                    loadBackup3Dmol();
+                } else {
+                    console.log('3Dmol.js loaded successfully');
+                }
+            }, 1000);
+        });
+    </script>
+    <!-- Chart.js for plotting -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -500,7 +539,8 @@
         /* 3D Chemical Structure Styles */
         .protein-viewer {
             width: 100%;
-            height: 200px;
+            height: 250px; /* Increased from 200px */
+            min-height: 250px; /* Ensure minimum height */
             background: radial-gradient(circle at center, rgba(0, 212, 255, 0.05), rgba(255, 0, 255, 0.03));
             border-radius: 12px;
             position: relative;
@@ -517,6 +557,7 @@
         .molecule-viewer {
             width: 100%;
             height: 100%;
+            min-height: 250px; /* Ensure the 3Dmol.js viewer has minimum height */
             border-radius: 12px;
         }
         
@@ -617,7 +658,8 @@
         
         .sequence-heatmap {
             width: 100%;
-            height: 250px;
+            min-height: 250px; /* Changed from fixed height to min-height */
+            max-height: 500px; /* Add max-height to prevent excessive growth */
             background: rgba(255, 255, 255, 0.02);
             border-radius: 12px;
             padding: 16px;
@@ -629,6 +671,7 @@
         
         .heatmap-header {
             margin-bottom: 12px;
+            flex-shrink: 0; /* Prevent header from shrinking */
         }
         
         .heatmap-title {
@@ -647,11 +690,12 @@
         .heatmap-sequence {
             flex: 1;
             overflow-x: auto;
-            overflow-y: hidden;
+            overflow-y: auto; /* Allow vertical scrolling for very long sequences */
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
-            line-height: 1.2;
+            line-height: 1.4; /* Slightly increased for better readability */
             position: relative;
+            padding: 8px; /* Add some internal padding */
         }
         
         .sequence-row {
@@ -901,7 +945,7 @@
                                 <div class="heatmap-sequence" id="heatmapSequence">
                                     <div class="plot-placeholder">Sequence heatmap will appear here after prediction</div>
                                 </div>
-                                <div class="heatmap-legend">
+                                <!-- <div class="heatmap-legend">
                                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                         <span style="font-size: 0.8rem; color: rgba(255,255,255,0.8);">0%</span>
                                         <div style="flex: 1; height: 12px; background: linear-gradient(to right, 
@@ -923,7 +967,7 @@
                                     <div style="text-align: center; margin-top: 8px;">
                                         <span style="font-size: 0.8rem; color: rgba(255,255,255,0.8); font-weight: 500;">Binding Probability</span>
                                     </div>
-                                </div>
+                                </div> -->
                             </div>
                         </div>
                         
@@ -935,8 +979,9 @@
                                     <div class="plot-title" id="plotTitle">Binding Site Prediction Analysis</div>
                                     <div class="plot-stats" id="plotStats">Model: CNN | Sites: 0 | Confidence: 0%</div>
                                 </div>
-                                <div class="plot-image" id="plotImageContainer">
-                                    <div class="plot-placeholder">CNN prediction plot will appear here after analysis</div>
+                                <div class="plot-content">
+                                    <canvas id="bindingChart" style="width: 100%; height: 350px;"></canvas>
+                                    <div class="plot-placeholder" id="plotPlaceholder" style="display: block;">CNN prediction plot will appear here after analysis</div>
                                 </div>
                             </div>
                         </div>
@@ -955,6 +1000,11 @@
                                     <button class="molecule-btn active" onclick="loadProtein('1crn')">1CRN</button>
                                     <button class="molecule-btn" onclick="loadProtein('1ubq')">1UBQ</button>
                                     <button class="molecule-btn" onclick="loadProtein('1mbn')">1MBN</button>
+                                </div>
+                                <div style="margin: 10px 0; display: flex; gap: 5px; flex-wrap: wrap;">
+                                    <button onclick="testProteinLoad()" style="padding: 4px 8px; font-size: 11px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Test</button>
+                                    <button onclick="loadLocalProteinStructure()" style="padding: 4px 8px; font-size: 11px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">Local</button>
+                                    <button onclick="loadRandomPDBProtein()" style="padding: 4px 8px; font-size: 11px; background: #ffc107; color: black; border: none; border-radius: 3px; cursor: pointer;">Random</button>
                                 </div>
                                 <div id="structureWaiting" style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 40px 20px; font-size: 0.9rem;">
                                     <div style="font-size: 2rem; margin-bottom: 10px;">🧬</div>
@@ -1096,8 +1146,120 @@ M  END`
             
             // Initialize protein viewer
             const proteinElement = document.getElementById('protein-viewer');
-            proteinViewer = $3Dmol.createViewer(proteinElement, config);
-            // Don't auto-load protein - wait for prediction
+            if (proteinElement) {
+                console.log('Initializing protein viewer with element:', proteinElement);
+                console.log('Element dimensions:', {
+                    width: proteinElement.offsetWidth,
+                    height: proteinElement.offsetHeight,
+                    clientWidth: proteinElement.clientWidth,
+                    clientHeight: proteinElement.clientHeight
+                });
+                
+                proteinViewer = $3Dmol.createViewer(proteinElement, config);
+                
+                // Force a resize to ensure the viewer has proper dimensions
+                setTimeout(() => {
+                    if (proteinViewer) {
+                        proteinViewer.resize();
+                        proteinViewer.render();
+                        console.log('Protein viewer resized and rendered');
+                        
+                        // Test load a simple protein immediately to verify functionality
+                        testProteinLoad();
+                    }
+                }, 100);
+            } else {
+                console.error('Protein viewer element not found!');
+            }
+        }
+        
+        // Test function to verify protein loading works
+        function testProteinLoad() {
+            console.log('Testing protein load...');
+            if (!proteinViewer) {
+                console.error('No protein viewer for test');
+                return;
+            }
+            
+            // Check viewer status
+            checkProteinViewerStatus();
+            
+            // Try to load a very simple, reliable protein
+            $3Dmol.download('pdb:1crn', proteinViewer, {}, function() {
+                console.log('TEST: Successfully loaded 1crn');
+                
+                // Simple styling
+                proteinViewer.setStyle({}, {
+                    cartoon: {
+                        color: 'spectrum'
+                    }
+                });
+                
+                proteinViewer.zoomTo();
+                proteinViewer.render();
+                
+                // Check if canvas exists and has content
+                setTimeout(() => {
+                    const canvas = proteinViewer.getCanvas();
+                    console.log('TEST: Canvas check:', {
+                        exists: !!canvas,
+                        width: canvas?.width,
+                        height: canvas?.height,
+                        context: canvas?.getContext('webgl') ? 'webgl' : 'no-webgl'
+                    });
+                }, 1000);
+                
+            }, function(error) {
+                console.error('TEST: Failed to load test protein:', error);
+            });
+        }
+        
+        // Check protein viewer status
+        function checkProteinViewerStatus() {
+            console.log('=== Protein Viewer Status ===');
+            console.log('Viewer exists:', !!proteinViewer);
+            
+            if (proteinViewer) {
+                const canvas = proteinViewer.getCanvas();
+                console.log('Canvas exists:', !!canvas);
+                
+                if (canvas) {
+                    console.log('Canvas details:', {
+                        width: canvas.width,
+                        height: canvas.height,
+                        offsetWidth: canvas.offsetWidth,
+                        offsetHeight: canvas.offsetHeight,
+                        style: canvas.style.cssText,
+                        parent: canvas.parentElement?.tagName
+                    });
+                    
+                    // Check WebGL context
+                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                    console.log('WebGL context:', !!gl);
+                    
+                    if (gl) {
+                        console.log('WebGL info:', {
+                            vendor: gl.getParameter(gl.VENDOR),
+                            renderer: gl.getParameter(gl.RENDERER),
+                            version: gl.getParameter(gl.VERSION)
+                        });
+                    }
+                } else {
+                    console.log('No canvas found');
+                }
+                
+                // Check viewer element
+                const element = document.getElementById('protein-viewer');
+                if (element) {
+                    console.log('Viewer element:', {
+                        width: element.offsetWidth,
+                        height: element.offsetHeight,
+                        visible: element.offsetParent !== null,
+                        children: element.children.length
+                    });
+                }
+            }
+            console.log('=== End Status ===');
         }
         
         // Load and display a molecule
@@ -1554,6 +1716,13 @@ M  END`
                 return;
             }
             
+            // Calculate adaptive styling based on sequence length and container width
+            const containerWidth = heatmapSequence.offsetWidth || 800; // fallback width
+            const sequenceLength = sequence.length;
+            
+            // Adaptive sizing calculations
+            const adaptiveStyle = calculateAdaptiveStyle(sequenceLength, containerWidth);
+            
             // Create binding site map for quick lookup
             const bindingMap = {};
             bindingSites.forEach(site => {
@@ -1581,7 +1750,7 @@ M  END`
                 return `rgba(${r}, ${g}, ${b}, 0.9)`;
             }
             
-            // Generate continuous heatmap HTML
+            // Generate continuous heatmap HTML with adaptive styling
             let heatmapHTML = '';
             for (let i = 0; i < sequence.length; i++) {
                 const position = i + 1;
@@ -1590,10 +1759,26 @@ M  END`
                 const backgroundColor = getHeatmapColor(probability);
                 const textColor = probability > 0.5 ? 'white' : 'black';
                 
-                heatmapHTML += `<span class="amino-acid" style="background-color: ${backgroundColor}; color: ${textColor}; border: 1px solid rgba(0,0,0,0.1); margin: 1px; padding: 2px 4px; display: inline-block; min-width: 20px; text-align: center; font-family: monospace; font-size: 12px;" title="Position ${position}: ${aminoAcid} - Binding Probability: ${(probability * 100).toFixed(1)}%">${aminoAcid}</span>`;
+                // Apply adaptive styling
+                const boxStyle = `
+                    background-color: ${backgroundColor}; 
+                    color: ${textColor}; 
+                    border: 1px solid rgba(0,0,0,0.1); 
+                    margin: ${adaptiveStyle.margin}px; 
+                    padding: ${adaptiveStyle.padding}px ${adaptiveStyle.paddingHorizontal}px; 
+                    display: inline-block; 
+                    min-width: ${adaptiveStyle.minWidth}px; 
+                    text-align: center; 
+                    font-family: monospace; 
+                    font-size: ${adaptiveStyle.fontSize}px;
+                    border-radius: ${adaptiveStyle.borderRadius}px;
+                    transition: transform 0.2s ease;
+                `;
                 
-                // Add line break every 50 characters for better visualization
-                if ((i + 1) % 50 === 0) {
+                heatmapHTML += `<span class="amino-acid" style="${boxStyle}" title="Position ${position}: ${aminoAcid} - Binding Probability: ${(probability * 100).toFixed(1)}%" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${aminoAcid}</span>`;
+                
+                // Add line break based on adaptive layout
+                if ((i + 1) % adaptiveStyle.itemsPerRow === 0) {
                     heatmapHTML += '<br>';
                 }
             }
@@ -1657,18 +1842,264 @@ M  END`
             heatmapStats.textContent = `${bindingSiteCount} binding sites | ${highConfidenceSites} high confidence (>70%) | Avg probability: ${averageProbability}%`;
         }
         
+        let bindingChart = null; // Global chart instance
+        
+        // Calculate adaptive styling for amino acid boxes based on sequence length and container width
+        function calculateAdaptiveStyle(sequenceLength, containerWidth) {
+            console.log(`Calculating adaptive style for sequence length: ${sequenceLength}, container width: ${containerWidth}`);
+            
+            // Base dimensions
+            let fontSize = 12;
+            let minWidth = 20;
+            let padding = 2;
+            let paddingHorizontal = 4;
+            let margin = 1;
+            let borderRadius = 2;
+            let itemsPerRow = 50; // default
+            
+            // Adaptive scaling based on sequence length
+            if (sequenceLength <= 50) {
+                // Short sequences - larger, more spaced out
+                fontSize = 14;
+                minWidth = 28;
+                padding = 4;
+                paddingHorizontal = 6;
+                margin = 2;
+                borderRadius = 4;
+                itemsPerRow = Math.min(25, sequenceLength);
+            } else if (sequenceLength <= 150) {
+                // Medium sequences - moderate sizing
+                fontSize = 13;
+                minWidth = 24;
+                padding = 3;
+                paddingHorizontal = 5;
+                margin = 1.5;
+                borderRadius = 3;
+                itemsPerRow = Math.min(40, Math.floor(containerWidth / 30));
+            } else if (sequenceLength <= 300) {
+                // Long sequences - compact but readable
+                fontSize = 12;
+                minWidth = 22;
+                padding = 2;
+                paddingHorizontal = 4;
+                margin = 1;
+                borderRadius = 2;
+                itemsPerRow = Math.min(50, Math.floor(containerWidth / 26));
+            } else if (sequenceLength <= 600) {
+                // Very long sequences - more compact
+                fontSize = 11;
+                minWidth = 18;
+                padding = 1.5;
+                paddingHorizontal = 3;
+                margin = 0.8;
+                borderRadius = 2;
+                itemsPerRow = Math.min(60, Math.floor(containerWidth / 22));
+            } else {
+                // Extremely long sequences - ultra compact
+                fontSize = 10;
+                minWidth = 16;
+                padding = 1;
+                paddingHorizontal = 2;
+                margin = 0.5;
+                borderRadius = 1;
+                itemsPerRow = Math.min(80, Math.floor(containerWidth / 18));
+            }
+            
+            // Adjust based on container width
+            const estimatedBoxWidth = minWidth + (paddingHorizontal * 2) + (margin * 2) + 2; // +2 for border
+            const maxItemsBasedOnWidth = Math.floor(containerWidth / estimatedBoxWidth);
+            
+            if (maxItemsBasedOnWidth < itemsPerRow) {
+                itemsPerRow = Math.max(10, maxItemsBasedOnWidth); // minimum 10 per row
+                
+                // If we need to reduce items per row, slightly reduce box size
+                if (itemsPerRow < 20) {
+                    fontSize = Math.max(8, fontSize - 1);
+                    minWidth = Math.max(12, minWidth - 2);
+                    paddingHorizontal = Math.max(1, paddingHorizontal - 1);
+                }
+            }
+            
+            const adaptiveStyle = {
+                fontSize: fontSize,
+                minWidth: minWidth,
+                padding: padding,
+                paddingHorizontal: paddingHorizontal,
+                margin: margin,
+                borderRadius: borderRadius,
+                itemsPerRow: itemsPerRow
+            };
+            
+            console.log('Adaptive style calculated:', adaptiveStyle);
+            return adaptiveStyle;
+        }
+        
         function updateCNNPlot(result) {
             console.log('updateCNNPlot called with result:', result);
-            const plotImageContainer = document.getElementById('plotImageContainer');
-            console.log('plotImageContainer element:', plotImageContainer);
-            console.log('result.cnn_plot exists:', !!result.cnn_plot);
             
-            if (plotImageContainer && result.cnn_plot) {
-                console.log('Setting plot image in container');
-                plotImageContainer.innerHTML = `<img src='data:image/png;base64,${result.cnn_plot}' alt='CNN Prediction Plot' style='width:100%; height:auto; border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);' />`;
+            if (result.chart_data) {
+                console.log('Creating Chart.js plot with data:', result.chart_data);
+                createBindingChart(result.chart_data);
+                
+                // Hide placeholder and show chart
+                const plotPlaceholder = document.getElementById('plotPlaceholder');
+                const chartCanvas = document.getElementById('bindingChart');
+                if (plotPlaceholder) plotPlaceholder.style.display = 'none';
+                if (chartCanvas) chartCanvas.style.display = 'block';
+                
+                // Update plot stats
+                const plotStats = document.getElementById('plotStats');
+                if (plotStats) {
+                    const bindingSiteCount = result.binding_sites ? result.binding_sites.length : 0;
+                    const avgProbability = result.chart_data.probabilities.length > 0 ? 
+                        (result.chart_data.probabilities.reduce((a, b) => a + b, 0) / result.chart_data.probabilities.length * 100).toFixed(1) : 0;
+                    plotStats.textContent = `Model: ${result.model_used} | Sites: ${bindingSiteCount} | Avg Confidence: ${avgProbability}%`;
+                }
             } else {
-                console.log('Missing element or plot data');
+                console.error('No chart_data in result');
             }
+        }
+        
+        function createBindingChart(chartData) {
+            const ctx = document.getElementById('bindingChart').getContext('2d');
+            
+            // Destroy existing chart if it exists
+            if (bindingChart) {
+                bindingChart.destroy();
+            }
+            
+            // Prepare data for Chart.js
+            const data = {
+                labels: chartData.positions.map(pos => `${chartData.sequence[pos-1]}${pos}`),
+                datasets: [{
+                    label: 'Binding Probability',
+                    data: chartData.probabilities,
+                    borderColor: '#2E86C1',
+                    backgroundColor: 'rgba(46, 134, 193, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: chartData.probabilities.map(prob => 
+                        prob > 0.7 ? '#ff0000' : prob > 0.5 ? '#ff8000' : '#2E86C1'
+                    ),
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }, {
+                    label: 'Binding Threshold (50%)',
+                    data: new Array(chartData.probabilities.length).fill(0.5),
+                    borderColor: '#e74c3c',
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                }]
+            };
+            
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Residue Position (AA + Position)',
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            maxTicksLimit: 20,
+                            font: {
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Binding Probability',
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            font: {
+                                size: 10
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        min: 0,
+                        max: 1
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Binding Site Prediction Analysis',
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        },
+                        padding: 20
+                    },
+                    legend: {
+                        labels: {
+                            color: 'rgba(255, 255, 255, 0.8)',
+                            font: {
+                                size: 11
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: 'rgba(255, 255, 255, 1)',
+                        bodyColor: 'rgba(255, 255, 255, 0.9)',
+                        borderColor: 'rgba(255, 255, 255, 0.3)',
+                        borderWidth: 1,
+                        callbacks: {
+                            title: function(context) {
+                                const index = context[0].dataIndex;
+                                return `Position ${chartData.positions[index]}: ${chartData.sequence[index]}`;
+                            },
+                            label: function(context) {
+                                if (context.datasetIndex === 0) {
+                                    const prob = context.parsed.y;
+                                    const confidence = prob > 0.7 ? 'High' : prob > 0.5 ? 'Medium' : 'Low';
+                                    return `Binding Probability: ${(prob * 100).toFixed(1)}% (${confidence})`;
+                                }
+                                return context.dataset.label;
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            };
+            
+            // Create the chart
+            bindingChart = new Chart(ctx, {
+                type: 'line',
+                data: data,
+                options: options
+            });
+            
+            console.log('Chart.js binding chart created successfully');
         }
         
         function update3DStructure(sequence, bindingSites) {
@@ -1681,102 +2112,309 @@ M  END`
             if (structureWaiting) structureWaiting.style.display = 'none';
             if (moleculeControls) moleculeControls.style.display = 'block';
             
-            // Load a random protein structure from the server
-            loadRandomProteinStructure(bindingSites);
+            // First try to load the local PDB file, then fallback to online
+            loadLocalProteinStructure(bindingSites);
         }
         
-        function loadRandomProteinStructure(bindingSites = []) {
+        function loadLocalProteinStructure(bindingSites = []) {
             if (!proteinViewer) {
                 console.error('Protein viewer not initialized');
                 return;
             }
             
-            console.log('Loading random protein structure...');
+            console.log('Loading local protein structure...');
             
-            // Get random protein structure from server
-            fetch('/random_protein')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const structureUrl = data.protein_structure.url;
-                        console.log('Loading protein structure from:', structureUrl);
+            // Try loading multiple protein structures in order of preference
+            const proteinFiles = ['crambin.pdb', 'ubiquitin.pdb', 'test_protein_2.pdb'];
+            let currentIndex = 0;
+            
+            function tryLoadNextProtein() {
+                if (currentIndex >= proteinFiles.length) {
+                    console.log('All local proteins failed, falling back to random PDB');
+                    loadRandomPDBProtein(bindingSites);
+                    return;
+                }
+                
+                const currentFile = proteinFiles[currentIndex];
+                console.log(`Trying to load protein: ${currentFile}`);
+                
+                fetch(`/protein_structure/${currentFile}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.text();
+                    })
+                    .then(pdbData => {
+                        console.log(`Successfully fetched ${currentFile}, length:`, pdbData.length);
+                        
+                        // Validate PDB data
+                        if (!pdbData || pdbData.length < 100 || !pdbData.includes('ATOM')) {
+                            throw new Error('Invalid PDB data - too short or missing ATOM records');
+                        }
                         
                         // Clear existing structure
                         proteinViewer.clear();
                         
-                        // Load the protein structure from our server
-                        fetch(structureUrl)
-                            .then(response => response.text())
-                            .then(pdbData => {
-                                // Add the PDB data to the viewer
-                                proteinViewer.addModel(pdbData, 'pdb');
-                                
-                                // Style the protein
-                                proteinViewer.setStyle({}, {
-                                    cartoon: {
-                                        color: 'spectrum',
-                                        opacity: 0.8
-                                    }
-                                });
-                                
-                                // Highlight alpha helices
-                                proteinViewer.setStyle({ss: 'h'}, {
-                                    cartoon: {
-                                        color: '#ff6b6b',
-                                        opacity: 0.9
-                                    }
-                                });
-                                
-                                // Highlight beta sheets
-                                proteinViewer.setStyle({ss: 's'}, {
-                                    cartoon: {
-                                        color: '#4ecdc4',
-                                        opacity: 0.9
-                                    }
-                                });
-                                
-                                // If we have binding sites, highlight them
-                                if (bindingSites && bindingSites.length > 0) {
-                                    highlightBindingSites(bindingSites);
+                        // Add the PDB data to the viewer
+                        const model = proteinViewer.addModel(pdbData, 'pdb');
+                        console.log('Model added to viewer:', model);
+                        
+                        // Style the protein with improved visualization
+                        proteinViewer.setStyle({}, {
+                            cartoon: {
+                                color: 'spectrum',
+                                opacity: 0.9,
+                                thickness: 0.4,
+                                arrows: true
+                            }
+                        });
+                        
+                        // Highlight secondary structures with better colors
+                        proteinViewer.setStyle({ss: 'h'}, {
+                            cartoon: {
+                                color: '#ff4757',
+                                opacity: 0.95,
+                                thickness: 0.6
+                            }
+                        });
+                        
+                        proteinViewer.setStyle({ss: 's'}, {
+                            cartoon: {
+                                color: '#2ed573',
+                                opacity: 0.95,
+                                thickness: 0.5
+                            }
+                        });
+                        
+                        // Add binding site highlighting if available
+                        if (bindingSites && bindingSites.length > 0) {
+                            console.log('Highlighting binding sites:', bindingSites.length);
+                            bindingSites.slice(0, 10).forEach((site, index) => {
+                                if (site.position && site.position <= 200) { // Reasonable residue number
+                                    proteinViewer.setStyle({resi: site.position}, {
+                                        stick: {
+                                            color: '#ff3838',
+                                            radius: 0.4
+                                        },
+                                        sphere: {
+                                            color: '#ff6b6b',
+                                            radius: 0.8,
+                                            opacity: 0.8
+                                        }
+                                    });
                                 }
-                                
-                                // Center and render
-                                proteinViewer.zoomTo();
-                                proteinViewer.render();
-                                
-                                // Add rotation animation
-                                if (window.proteinRotationInterval) {
-                                    clearInterval(window.proteinRotationInterval);
-                                }
-                                window.proteinRotationInterval = setInterval(() => {
-                                    proteinViewer.rotate(1, 'y');
-                                    proteinViewer.render();
-                                }, 50);
-                                
-                                console.log('Protein structure loaded successfully:', data.protein_structure.name);
-                            })
-                            .catch(error => {
-                                console.error('Error loading protein structure:', error);
-                                // Fallback to a PDB ID if local files fail
-                                loadFallbackProtein();
                             });
-                    } else {
-                        console.error('Failed to get random protein:', data.error);
-                        loadFallbackProtein();
+                        }
+                        
+                        // Force multiple rendering attempts
+                        setTimeout(() => {
+                            proteinViewer.resize();
+                            proteinViewer.zoomTo();
+                            proteinViewer.render();
+                            console.log('Initial render completed');
+                            
+                            // Second render attempt after a delay
+                            setTimeout(() => {
+                                proteinViewer.render();
+                                console.log('Second render completed');
+                                
+                                // Check if rendering was successful
+                                const canvas = proteinViewer.getCanvas();
+                                if (canvas) {
+                                    console.log('Canvas found:', {
+                                        width: canvas.width,
+                                        height: canvas.height,
+                                        webgl: !!canvas.getContext('webgl') || !!canvas.getContext('experimental-webgl')
+                                    });
+                                } else {
+                                    console.error('No canvas found in protein viewer');
+                                }
+                            }, 500);
+                        }, 100);
+                        
+                        // Add smooth rotation animation
+                        if (window.proteinRotationInterval) {
+                            clearInterval(window.proteinRotationInterval);
+                        }
+                        
+                        window.proteinRotationInterval = setInterval(() => {
+                            if (proteinViewer) {
+                                proteinViewer.rotate(0.8, 'y');
+                                proteinViewer.render();
+                            }
+                        }, 80);
+                        
+                        console.log(`Local protein structure ${currentFile} loaded successfully`);
+                        
+                    })
+                    .catch(error => {
+                        console.error(`Failed to load ${currentFile}:`, error);
+                        currentIndex++;
+                        tryLoadNextProtein();
+                    });
+            }
+            
+            // Start loading the first protein
+            tryLoadNextProtein();
+        }
+        
+        function loadRandomPDBProtein(bindingSites = []) {
+            if (!proteinViewer) {
+                console.error('Protein viewer not initialized');
+                return;
+            }
+            
+            console.log('Loading random PDB protein structure...');
+            
+            // List of interesting protein structures to randomly choose from
+            const randomProteins = [
+                '1crn', // Crambin (small protein)
+                '1ubq', // Ubiquitin
+                '1mbn', // Myoglobin
+                '2gbp', // Glucose binding protein
+                '1bpi', // Bovine pancreatic trypsin inhibitor
+                '1lyz', // Lysozyme
+                '1stp', // Streptavidin
+                '1hem', // Hemoglobin
+                '1rtp', // Ribonuclease
+                '1cbn'  // Chymotrypsinogen
+            ];
+            
+            // Select a random protein
+            const randomProtein = randomProteins[Math.floor(Math.random() * randomProteins.length)];
+            console.log(`Loading protein: ${randomProtein}`);
+            
+            // Clear existing structure
+            proteinViewer.clear();
+            
+            // Load protein from PDB
+            $3Dmol.download('pdb:' + randomProtein, proteinViewer, {}, function() {
+                console.log(`Successfully loaded protein: ${randomProtein}`);
+                
+                // Style the protein with attractive colors
+                proteinViewer.setStyle({}, {
+                    cartoon: {
+                        color: 'spectrum',
+                        opacity: 0.8
                     }
-                })
-                .catch(error => {
-                    console.error('Error fetching random protein:', error);
-                    loadFallbackProtein();
                 });
+                
+                // Highlight alpha helices in red
+                proteinViewer.setStyle({ss: 'h'}, {
+                    cartoon: {
+                        color: '#ff6b6b',
+                        opacity: 0.9
+                    }
+                });
+                
+                // Highlight beta sheets in blue
+                proteinViewer.setStyle({ss: 's'}, {
+                    cartoon: {
+                        color: '#4ecdc4',
+                        opacity: 0.9
+                    }
+                });
+                
+                // Add some random binding sites for visualization if we have predictions
+                if (bindingSites && bindingSites.length > 0) {
+                    // Highlight a few random residues to simulate binding sites
+                    const numResidues = Math.min(5, bindingSites.length);
+                    for (let i = 0; i < numResidues; i++) {
+                        const randomResi = Math.floor(Math.random() * 100) + 1; // Random residue number
+                        proteinViewer.setStyle({resi: randomResi}, {
+                            stick: {
+                                color: '#ff0000',
+                                radius: 0.3
+                            },
+                            sphere: {
+                                color: '#ff0000',
+                                radius: 1.0,
+                                opacity: 0.7
+                            }
+                        });
+                    }
+                }
+                
+                // Force resize and render
+                proteinViewer.resize();
+                proteinViewer.zoomTo();
+                proteinViewer.render();
+                
+                // Debug: Check if viewer is actually rendering
+                setTimeout(() => {
+                    const canvas = proteinViewer.getCanvas();
+                    console.log('Protein viewer canvas:', canvas);
+                    console.log('Canvas dimensions:', {
+                        width: canvas?.width,
+                        height: canvas?.height,
+                        style: canvas?.style
+                    });
+                }, 500);
+                
+                // Add smooth rotation animation
+                if (window.proteinRotationInterval) {
+                    clearInterval(window.proteinRotationInterval);
+                }
+                
+                window.proteinRotationInterval = setInterval(() => {
+                    proteinViewer.rotate(0.5, 'y');
+                    proteinViewer.render();
+                }, 100);
+                
+                console.log('Protein structure loaded and animated successfully');
+                
+            }, function(error) {
+                console.error(`Failed to load protein ${randomProtein}:`, error);
+                // Try loading a fallback protein
+                loadFallbackProtein();
+            });
         }
         
         function loadFallbackProtein() {
             console.log('Loading fallback protein structure...');
-            // Fallback to a known PDB structure
-            const fallbackProteins = ['1crn', '1ubq', '1mbn', '2gbp', '1bpi'];
-            const randomProtein = fallbackProteins[Math.floor(Math.random() * fallbackProteins.length)];
-            loadProtein(randomProtein);
+            // Fallback to a simple, reliable protein structure
+            const fallbackProtein = '1crn'; // Crambin - small, reliable structure
+            
+            if (!proteinViewer) {
+                console.error('Protein viewer not initialized for fallback');
+                return;
+            }
+            
+            proteinViewer.clear();
+            
+            $3Dmol.download('pdb:' + fallbackProtein, proteinViewer, {}, function() {
+                console.log(`Fallback protein ${fallbackProtein} loaded successfully`);
+                
+                // Simple styling
+                proteinViewer.setStyle({}, {
+                    cartoon: {
+                        color: 'spectrum',
+                        opacity: 0.8
+                    }
+                });
+                
+                proteinViewer.zoomTo();
+                proteinViewer.render();
+                
+                // Add gentle rotation
+                if (window.proteinRotationInterval) {
+                    clearInterval(window.proteinRotationInterval);
+                }
+                
+                window.proteinRotationInterval = setInterval(() => {
+                    proteinViewer.rotate(0.5, 'y');
+                    proteinViewer.render();
+                }, 100);
+                
+            }, function(error) {
+                console.error('Even fallback protein failed to load:', error);
+                // Show error message in the viewer
+                const proteinElement = document.getElementById('protein-viewer');
+                if (proteinElement) {
+                    proteinElement.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: rgba(255,255,255,0.6); text-align: center; font-size: 0.9rem;"><div>🔬<br>Unable to load protein structure<br>Please check your internet connection</div></div>';
+                }
+            });
         }
         
         function highlightBindingSites(bindingSites) {
