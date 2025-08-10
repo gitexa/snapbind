@@ -1,6 +1,6 @@
-# Protein Binding Site Analysis Pipeline Documentation
+# SnapBind: Data Generation
 
-This documentation covers three Jupyter notebooks that form a complete pipeline for protein binding site discovery, data augmentation, and dataset merging for machine learning applications.
+Three Jupyter notebooks that form a complete pipeline for protein binding site discovery, data augmentation, and dataset merging for machine learning applications.
 
 ## Overview
 
@@ -262,5 +262,3 @@ MAX_WORKERS = 12          # Utilize available cores
 - `chain_X_binding_array`: JSON array of binding positions
 - `ligand_name`: Bound ligand identifier (or 'NONE' for negatives)
 - `num_contact_residues`: Number of binding residues
-
-This pipeline provides a complete solution for creating machine learning datasets from protein structural data, suitable for binding site prediction and related bioinformatics applications.
