@@ -5,31 +5,31 @@
 \usepackage{amsmath}
 \usepackage{booktabs}
 \usepackage{hyperref}
-\usepackage{geometry}
 \usepackage{multicol}
+\usepackage{graphicx}
+\usepackage[margin=2cm]{geometry}
 
-\geometry{margin=1.5cm}
 \setlength{\columnsep}{1cm}
 
-\title{\vspace{-1cm}\textit{SnapBind}: Lightweight CNN for Protein Binding Pocket Prediction}
-\author{[David Z Barth, Alexander Haas, Elias M Bruss]}
+\title{\vspace{-0.5cm}\textit{SnapBind}: Lightweight CNN for Protein Binding Pocket Prediction}
+\author{David Z Barth, Alexander Haas, Elias M Bruss}
 \date{}
 
 \begin{document}
 
+\vspace{1cm}
 \maketitle
-\vspace{-0.5cm}
+\vspace{-0.3cm}
 
 \begin{multicols}{2}
 
-\noindent \textbf{Abstract:} We present SnapBind, a lightweight CNN (0.5M parameters) for predicting protein druggability and binding pockets from amino acid sequences. Using 100k protein-ligand pairs from BindingDB, 
-our model enables local deployment for high-throughput screening without expensive computational infrastructure.
+\section*{Abstract:} We present \textit{SnapBind}, a lightweight CNN (0.5M parameters) for predicting protein druggability and binding pockets from amino acid sequences. Using 100k protein-ligand pairs from BindingDB, our model enables local deployment for high-throughput screening without expensive computational infrastructure.
 
 \section{Methods}
 
-\quad \textbf{Dataset:} 100k protein-ligand pairs from BindingDB plus 20k negative controls (Antibodies, structural proteins, nucleases). Binding sites defined by 5Å cutoff with binary residue annotation. \\
+\noindent \quad \textbf{Dataset:} 100k protein-ligand pairs from BindingDB plus 20k negative controls (Antibodies, structural proteins, nucleases). Binding sites defined by 5Å cutoff with binary residue annotation. \\
 
-\noindent \quad \textbf{Architecture:} FastCNNBindingPredictor with 64-dim embeddings, 128-dim hidden layers, 0.1 dropout, handling 20-300 residue sequences. \\
+\noindent \quad \textbf{Architecture:} FastCNNBindingPredictor with 64-dim embeddings, 128-dim hidden layers, 0.1 dropout, handling 20-300 residue sequences.\\
 
 \noindent \quad \textbf{Training:} Batch size 32, AdamW (lr=2e-4), focal loss (α=1, γ=2) for class imbalance, early stopping, Apple Silicon GPU acceleration.
 
@@ -39,9 +39,15 @@ Three-pass architecture: (1) Sequence-based CNN for druggability, (2) ESM embedd
 
 \section{Results}
 
-\textbf{Efficiency:} 0.5M parameters enable consumer hardware deployment with rapid batch processing and local execution.
+\textbf{Efficiency:} 0.5M parameters enable consumer hardware deployment with rapid batch processing and local execution. \\
 
-\textbf{Performance:} Stable training with effective class imbalance handling through focal loss and positive class weighting. 
+\textbf{Performance:} Stable training with effective class imbalance handling through focal loss and positive class weighting.
+
+\begin{center}
+\includegraphics[width=1\columnwidth]{fig1mod.png}
+\\[0.1cm]
+\textbf{Figure 1:} Score distribution for ground truth.
+\end{center}
 
 \section{Applications}
 
@@ -52,5 +58,7 @@ High-throughput protein screening, binding site localization, academic accessibi
 Our lightweight CNN democratizes binding pocket prediction by balancing performance with computational efficiency, enabling researchers to perform drug discovery screening without extensive infrastructure requirements.
 
 \end{multicols}
+
+\vfill
 
 \end{document}
