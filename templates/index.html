@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Protein-Drug Binding Affinity Predictor</title>
+    <title>SnapBind</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- 3Dmol.js for molecular visualization -->
     <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
@@ -83,19 +83,30 @@
             gap: 20px;
             padding: 40px;
             height: calc(100vh - 200px);
+            transition: grid-template-columns 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .grid-layout.prediction-mode {
+            grid-template-columns: 350px 1fr 350px;
         }
         
         @media (max-width: 1400px) {
             .grid-layout {
                 grid-template-columns: 300px 1fr 300px;
             }
+            .grid-layout.prediction-mode {
+                grid-template-columns: 300px 1fr 300px;
+            }
         }
         
         @media (max-width: 1200px) {
             .grid-layout {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr 0fr 0fr;
                 grid-template-rows: auto auto auto;
                 height: auto;
+            }
+            .grid-layout.prediction-mode {
+                grid-template-columns: 1fr 1fr;
             }
         }
         
@@ -103,6 +114,9 @@
             .grid-layout {
                 grid-template-columns: 1fr;
                 padding: 20px;
+            }
+            .grid-layout.prediction-mode {
+                grid-template-columns: 1fr;
             }
         }
         
@@ -141,6 +155,14 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
+            opacity: 1;
+            pointer-events: auto;
+            transition: opacity 0.5s ease;
+        }
+        
+        .side-panels.visible {
+            opacity: 1;
+            pointer-events: auto;
         }
         
         @media (max-width: 1200px) {
@@ -196,15 +218,6 @@
         .compound-structure {
             flex: 1;
             min-height: 180px;
-        }
-        
-        .top-compounds {
-            flex: 1;
-            min-height: 200px;
-        }
-        
-        .sequence-viewer {
-            height: 160px;
         }
         
         .form-section {
@@ -537,58 +550,236 @@
             border-color: rgba(0, 212, 255, 0.8);
         }
         
-        /* Top Compounds Styles */
-        .compound-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            max-height: 240px;
-            overflow-y: auto;
-        }
-        
-        .compound-item {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            padding: 12px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .compound-item:hover {
-            background: rgba(0, 212, 255, 0.1);
-            border-color: rgba(0, 212, 255, 0.3);
-        }
-        
-        .compound-name {
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 0.9rem;
-            margin-bottom: 4px;
-        }
-        
-        .compound-affinity {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.8rem;
-            color: rgba(255, 255, 255, 0.7);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .affinity-bar {
-            width: 60px;
+        /* Loading Bar Styles */
+        .loading-bar-container {
+            width: 100%;
             height: 4px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 2px;
             overflow: hidden;
+            margin: 20px 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
         
-        .affinity-fill {
+        .loading-bar-container.active {
+            opacity: 1;
+        }
+        
+        .loading-bar {
             height: 100%;
-            background: linear-gradient(90deg, #00ff88, #00d4ff);
+            background: linear-gradient(90deg, #00d4ff, #ff00ff, #00ff88);
+            background-size: 200% 100%;
+            animation: loading-gradient 2s ease-in-out infinite, loading-progress 8s ease-out forwards;
+            width: 0%;
+        }
+        
+        @keyframes loading-gradient {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        @keyframes loading-progress {
+            0% { width: 0%; }
+            25% { width: 30%; }
+            50% { width: 60%; }
+            75% { width: 85%; }
+            100% { width: 100%; }
+        }
+        
+        /* Center Column Styles */
+        .center-column {
+            overflow: hidden;
+            opacity: 1;
+            transition: opacity 0.5s ease 0.3s;
+        }
+        
+        .center-column.visible {
+            opacity: 1;
+        }
+        
+        .prediction-panels {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 20px;
+        }
+        
+        .heatmap-panel {
+            flex: 1;
+            min-height: 300px;
+        }
+        
+        .cnn-plot-panel {
+            flex: 1;
+            min-height: 300px;
+        }
+        
+        .sequence-heatmap {
+            width: 100%;
+            height: 250px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .heatmap-header {
+            margin-bottom: 12px;
+        }
+        
+        .heatmap-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 4px;
+        }
+        
+        .heatmap-stats {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .heatmap-sequence {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            line-height: 1.2;
+            position: relative;
+        }
+        
+        .sequence-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 2px;
+            min-height: 20px;
+        }
+        
+        .sequence-position {
+            width: 40px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 9px;
+            text-align: right;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+        .sequence-amino-acids {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1px;
+        }
+        
+        .amino-acid-heatmap {
+            width: 16px;
+            height: 16px;
             border-radius: 2px;
-            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+        }
+        
+        .amino-acid-heatmap:hover {
+            transform: scale(1.3);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+            z-index: 10;
+        }
+        
+        .binding-probability-0 { background: #1a1a1f; }
+        .binding-probability-1 { background: #2d1b69; }
+        .binding-probability-2 { background: #4a148c; }
+        .binding-probability-3 { background: #6a1b9a; }
+        .binding-probability-4 { background: #8e24aa; }
+        .binding-probability-5 { background: #ab47bc; }
+        .binding-probability-6 { background: #ba68c8; }
+        .binding-probability-7 { background: #ce93d8; }
+        .binding-probability-8 { background: #e1bee7; }
+        .binding-probability-9 { background: #f3e5f5; }
+        .binding-probability-10 { background: linear-gradient(45deg, #ff4081, #e91e63); }
+        
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+        
+        .cnn-plot-container {
+            width: 100%;
+            height: 250px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .plot-header {
+            margin-bottom: 12px;
+        }
+        
+        .plot-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 4px;
+        }
+        
+        .plot-stats {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .plot-image {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .plot-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        
+        .plot-placeholder {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.85rem;
+            text-align: center;
         }
         
         /* Sequence Viewer Styles */
@@ -652,12 +843,12 @@
     
     <div class="container">
         <div class="header">
-            <h1>🧬 Protein-Drug Binding Affinity Predictor</h1>
-            <p>Advanced AI-powered molecular interaction analysis platform</p>
+            <h1>🧬 SnapBind</h1>
+            <p>AI-powered binding site analysis platform</p>
         </div>
         
         <div class="main-content">
-            <div class="grid-layout">
+            <div class="grid-layout" id="mainGrid">
                 <!-- Input Section -->
                 <div class="input-section">
                     <div class="panel">
@@ -674,22 +865,16 @@
                             </div>
                             
                             <div class="form-section">
-                                <label for="smiles">Target Compound</label>
-                                <select id="smiles" name="smiles" required>
-                                    <option value="">Select compound...</option>
-                                    {% for name, smiles in smiles_db.items() %}
-                                    <option value="{{ name }}">{{ name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            
-                            <div class="form-section">
                                 <label for="model">AI Model</label>
                                 <select id="model" name="model" required>
                                     {% for model in models %}
                                     <option value="{{ model }}">{{ model }}</option>
                                     {% endfor %}
                                 </select>
+                            </div>
+                            
+                            <div class="loading-bar-container" id="loadingBar">
+                                <div class="loading-bar"></div>
                             </div>
                             
                             <button type="submit" class="predict-btn" id="predictBtn">
@@ -699,40 +884,51 @@
                         
                         <div class="error-message" id="errorMessage"></div>
                     </div>
-                    
-                    <!-- Sequence Viewer Panel -->
-                    <div class="panel sequence-viewer">
-                        <h3>📝 Sequence Analysis</h3>
-                        <div class="sequence-container">
-                            <div class="sequence-display" id="sequenceDisplay">
-                                <span style="color: rgba(255, 255, 255, 0.5);">Enter a protein sequence to view amino acid composition...</span>
-                            </div>
-                            <div class="sequence-stats" id="sequenceStats"></div>
-                        </div>
-                    </div>
                 </div>
                 
-                <!-- Main Results Section -->
-                <div class="main-results">
-                    <div class="results-container">
-                        <div class="loading" id="loading">
-                            <div class="loading-spinner"></div>
-                            <p>Processing molecular analysis...</p>
+                <!-- Center Column - Prediction Results -->
+                <div class="main-results center-column" id="centerColumn">
+                    <div class="prediction-panels">
+                        <!-- Sequence Heatmap Panel -->
+                        <div class="panel heatmap-panel">
+                            <h3>🔥 Binding Site Heatmap</h3>
+                            <div class="sequence-heatmap" id="sequenceHeatmap">
+                                <div class="heatmap-header">
+                                    <div class="heatmap-title" id="heatmapTitle">Amino Acid Sequence</div>
+                                    <div class="heatmap-stats" id="heatmapStats">Length: 0 | Binding sites: 0</div>
+                                </div>
+                                <div class="heatmap-sequence" id="heatmapSequence">
+                                    <div class="plot-placeholder">Sequence heatmap will appear here after prediction</div>
+                                </div>
+                                <div class="heatmap-legend">
+                                    <div class="legend-item">
+                                        <div class="legend-color binding-probability-0"></div>
+                                        <span>Low</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color binding-probability-5"></div>
+                                        <span>Med</span>
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color binding-probability-10"></div>
+                                        <span>High</span>
+                                    </div>
+                                    <span style="margin-left: auto;">Binding Probability</span>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div id="resultsContent" style="display: none; height: 100%; display: flex; flex-direction: column;">
-                            <div class="results-header">
-                                <h3>📊 Binding Analysis Results</h3>
-                                <p id="resultsInfo"></p>
-                            </div>
-                            <div class="plot-container">
-                                <img id="plotImage" src="" alt="Binding Affinity Analysis">
-                            </div>
-                        </div>
-                        
-                        <div id="placeholder" class="plot-container">
-                            <div class="placeholder-content">
-                                Results will appear here after analysis
+                        <!-- CNN Plot Panel -->
+                        <div class="panel cnn-plot-panel">
+                            <h3>📊 CNN Model Predictions</h3>
+                            <div class="cnn-plot-container" id="cnnPlotContainer">
+                                <div class="plot-header">
+                                    <div class="plot-title" id="plotTitle">Binding Site Prediction Analysis</div>
+                                    <div class="plot-stats" id="plotStats">Model: CNN | Sites: 0 | Confidence: 0%</div>
+                                </div>
+                                <div class="plot-image" id="plotImageContainer">
+                                    <div class="plot-placeholder">CNN prediction plot will appear here after analysis</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -746,85 +942,21 @@
                         <div class="protein-viewer">
                             <div class="molecule-container">
                                 <div id="protein-viewer" class="molecule-viewer"></div>
-                                <div class="molecule-controls">
+                                <div class="molecule-controls" id="moleculeControls" style="display: none;">
                                     <button class="molecule-btn active" onclick="loadProtein('1crn')">1CRN</button>
                                     <button class="molecule-btn" onclick="loadProtein('1ubq')">1UBQ</button>
                                     <button class="molecule-btn" onclick="loadProtein('1mbn')">1MBN</button>
                                 </div>
-                            </div>
-                        </div>
-                        <div style="margin-top: 12px; font-size: 0.8rem; color: rgba(255, 255, 255, 0.6); text-align: center;">
-                            <span style="color: #ff6b6b;">●</span> Binding sites highlighted
-                        </div>
-                    </div>
-                
-                    <!-- 3D Chemical Structure Panel -->
-                    <div class="panel compound-structure">
-                        <h3>🧪 SMILES Compound Structure</h3>
-                        <div class="protein-viewer">
-                            <div class="molecule-container">
-                                <div id="molecule-viewer" class="molecule-viewer"></div>
-                                <div class="molecule-controls">
-                                    <button class="molecule-btn active" onclick="loadMolecule('aspirin')">Aspirin</button>
-                                    <button class="molecule-btn" onclick="loadMolecule('caffeine')">Caffeine</button>
-                                    <button class="molecule-btn" onclick="loadMolecule('morphine')">Morphine</button>
+                                <div id="structureWaiting" style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 40px 20px; font-size: 0.9rem;">
+                                    <div style="font-size: 2rem; margin-bottom: 10px;">🧬</div>
+                                    <div>3D structure will appear here after prediction</div>
                                 </div>
                             </div>
                         </div>
-                        <div style="margin-top: 12px; font-size: 0.8rem; color: rgba(255, 255, 255, 0.6); text-align: center;">
-                            <span style="color: #00d4ff;">●</span> Binding atoms highlighted
-                        </div>
-                    </div>
-                    
-                    <!-- Top Compounds Panel -->
-                    <div class="panel top-compounds">
-                        <h3>⚡ Top Binding Compounds</h3>
-                        <div class="compound-list" id="compoundList">
-                            <div class="compound-item">
-                                <div class="compound-name">Aspirin</div>
-                                <div class="compound-affinity">
-                                    <span>IC50: 12.3 nM</span>
-                                    <div class="affinity-bar">
-                                        <div class="affinity-fill" style="width: 85%"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="compound-item">
-                                <div class="compound-name">Caffeine</div>
-                                <div class="compound-affinity">
-                                    <span>IC50: 45.7 nM</span>
-                                    <div class="affinity-bar">
-                                        <div class="affinity-fill" style="width: 65%"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="compound-item">
-                                <div class="compound-name">Ibuprofen</div>
-                                <div class="compound-affinity">
-                                    <span>IC50: 78.1 nM</span>
-                                    <div class="affinity-bar">
-                                        <div class="affinity-fill" style="width: 45%"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="compound-item">
-                                <div class="compound-name">Paracetamol</div>
-                                <div class="compound-affinity">
-                                    <span>IC50: 156.3 nM</span>
-                                    <div class="affinity-bar">
-                                        <div class="affinity-fill" style="width: 25%"></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="compound-item">
-                                <div class="compound-name">Morphine</div>
-                                <div class="compound-affinity">
-                                    <span>IC50: 234.8 nM</span>
-                                    <div class="affinity-bar">
-                                        <div class="affinity-fill" style="width: 15%"></div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div id="bindingSiteLegend" style="margin-top: 12px; font-size: 0.8rem; color: rgba(255, 255, 255, 0.6); text-align: center; display: none;">
+                            <span style="color: #ff6b6b;">●</span> High binding probability <br>
+                            <span style="color: #00d4ff;">●</span> Medium binding probability <br>
+                            <span style="color: #ffffff;">●</span> Low binding probability
                         </div>
                     </div>
                 </div>
@@ -956,12 +1088,12 @@ M  END`
                 defaultcolors: $3Dmol.elementColors.rasmol
             };
             viewer = $3Dmol.createViewer(element, config);
-            loadMolecule('aspirin');
+            // Don't auto-load molecule - wait for user input
             
             // Initialize protein viewer
             const proteinElement = document.getElementById('protein-viewer');
             proteinViewer = $3Dmol.createViewer(proteinElement, config);
-            loadProtein('1crn');
+            // Don't auto-load protein - wait for prediction
         }
         
         // Load and display a molecule
@@ -1270,91 +1402,207 @@ M  END`
                 } else {
                     console.warn('3Dmol.js not loaded, molecular viewer disabled');
                 }
+                
+                // Test the sequence heatmap with a sample sequence
+                console.log('Testing sequence heatmap...');
+                const testSequence = "MKTVRQERLKSIVRILERSKEPVSGAQLAEELSVSRQVIVQDIAYLRSLGYNIVATPRGYVLAGG";
+                const testBindingSites = [
+                    {position: 5, probability: 0.8},
+                    {position: 12, probability: 0.9},
+                    {position: 25, probability: 0.7}
+                ];
+                updateSequenceHeatmap(testSequence, testBindingSites);
             }, 500);
         });
         
-        // Real-time sequence input monitoring
-        document.getElementById('sequence').addEventListener('input', function(e) {
-            updateSequenceViewer(e.target.value);
-        });
+        // Debug: Check if form exists
+        const predictionForm = document.getElementById('predictionForm');
+        console.log('Prediction form element:', predictionForm);
         
-        // Monitor compound selection changes
-        document.getElementById('smiles').addEventListener('change', function(e) {
-            const selectedCompound = e.target.value;
-            if (selectedCompound) {
-                updateMolecularViewer(selectedCompound);
-            }
-        });
-        
-        document.getElementById('predictionForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(e.target);
-            const data = {
-                sequence: formData.get('sequence'),
-                smiles: formData.get('smiles'),
-                model: formData.get('model')
-            };
-            
-            // Show loading state
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('resultsContent').style.display = 'none';
-            document.getElementById('placeholder').style.display = 'none';
-            document.getElementById('errorMessage').style.display = 'none';
-            document.getElementById('predictBtn').disabled = true;
-            
-            // Update compound rankings with new data
-            updateCompoundRankings(data.smiles);
-            
-            // Update molecular viewer
-            if (data.smiles) {
-                updateMolecularViewer(data.smiles);
-            }
-            
-            try {
-                const response = await fetch('/predict', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
+        if (predictionForm) {
+            console.log('Adding submit event listener to form');
+            predictionForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                console.log('Form submitted!');
                 
-                const result = await response.json();
+                const formData = new FormData(e.target);
+                const data = {
+                    sequence: formData.get('sequence'),
+                    model: formData.get('model')
+                };
                 
-                if (result.success) {
-                    // Show results
-                    document.getElementById('plotImage').src = 'data:image/png;base64,' + result.plot;
+                console.log('Form data:', data);
+                
+                // Start progressive interface
+                showLoadingState();
+                
+                try {
+                    console.log('Sending request to /predict');
+                    const response = await fetch('/predict', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    });
                     
-                    let infoText = `IC50: ${result.ic50} | Model: ${result.model_used} | Compound: ${result.compound}`;
-                    if (result.binding_summary) {
-                        infoText += ` | ${result.binding_summary}`;
+                    console.log('Response received:', response.status);
+                    const result = await response.json();
+                    console.log('Result:', result);
+                    
+                    if (result.success) {
+                        // Show results in new interface
+                        showPredictionResults(result, data);
+                    } else {
+                        // Show error
+                        showError(result.error);
                     }
-                    
-                    document.getElementById('resultsInfo').textContent = infoText;
-                    document.getElementById('resultsContent').style.display = 'flex';
-                    document.getElementById('loading').style.display = 'none';
-                    
-                    // Update binding sites in sequence viewer
-                    if (result.binding_sites) {
-                        updateBindingSites(result.binding_sites);
-                    }
-                } else {
-                    // Show error
-                    document.getElementById('errorMessage').textContent = result.error;
-                    document.getElementById('errorMessage').style.display = 'block';
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('placeholder').style.display = 'flex';
+                } catch (error) {
+                    showError('Network error: ' + error.message);
                 }
-            } catch (error) {
-                document.getElementById('errorMessage').textContent = 'Network error: ' + error.message;
-                document.getElementById('errorMessage').style.display = 'block';
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('placeholder').style.display = 'flex';
-            } finally {
-                document.getElementById('predictBtn').disabled = false;
+            });
+        } else {
+            console.error('predictionForm element not found!');
+        }
+        
+        // Progressive interface functions
+        function showLoadingState() {
+            // Show loading bar
+            const loadingBar = document.getElementById('loadingBar');
+            if (loadingBar) loadingBar.classList.add('active');
+            
+            const predictBtn = document.getElementById('predictBtn');
+            if (predictBtn) predictBtn.disabled = true;
+            
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) errorMessage.style.display = 'none';
+            
+            // Show side panels
+            const sidePanels = document.querySelector('.side-panels');
+            if (sidePanels) sidePanels.classList.add('visible');
+            
+            // Expand grid to show center column after a delay
+            setTimeout(() => {
+                const mainGrid = document.getElementById('mainGrid');
+                if (mainGrid) mainGrid.classList.add('prediction-mode');
+                
+                const centerColumn = document.getElementById('centerColumn');
+                if (centerColumn) centerColumn.classList.add('visible');
+            }, 1000);
+        }
+        
+        function showPredictionResults(result, inputData) {
+            console.log('showPredictionResults called with:', result, inputData);
+            
+            // Hide loading bar
+            const loadingBar = document.getElementById('loadingBar');
+            if (loadingBar) loadingBar.classList.remove('active');
+            
+            const predictBtn = document.getElementById('predictBtn');
+            if (predictBtn) predictBtn.disabled = false;
+            
+            // Hide initial waiting message and show structure controls
+            const structureWaiting = document.getElementById('structureWaiting');
+            if (structureWaiting) structureWaiting.style.display = 'none';
+            
+            const moleculeControls = document.getElementById('moleculeControls');
+            if (moleculeControls) moleculeControls.style.display = 'block';
+            
+            const bindingSiteLegend = document.getElementById('bindingSiteLegend');
+            if (bindingSiteLegend) bindingSiteLegend.style.display = 'block';
+            
+            // Update heatmap
+            console.log('Updating sequence heatmap with sequence:', inputData.sequence);
+            console.log('Binding sites:', result.binding_sites);
+            updateSequenceHeatmap(inputData.sequence, result.binding_sites || []);
+            
+            // Update CNN plot
+            updateCNNPlot(result);
+            
+            // Update 3D structure with binding sites
+            update3DStructure(inputData.sequence, result.binding_sites || []);
+        }
+        
+        function showError(errorMessage) {
+            const loadingBar = document.getElementById('loadingBar');
+            if (loadingBar) loadingBar.classList.remove('active');
+            
+            const predictBtn = document.getElementById('predictBtn');
+            if (predictBtn) predictBtn.disabled = false;
+            
+            const errorMsg = document.getElementById('errorMessage');
+            if (errorMsg) {
+                errorMsg.textContent = errorMessage;
+                errorMsg.style.display = 'block';
             }
-        });
+        }
+        
+        function updateSequenceHeatmap(sequence, bindingSites) {
+            console.log('updateSequenceHeatmap called with:', sequence, bindingSites);
+            
+            const heatmapSequence = document.getElementById('heatmapSequence');
+            const heatmapTitle = document.getElementById('heatmapTitle');
+            const heatmapStats = document.getElementById('heatmapStats');
+            
+            console.log('Elements found:', {
+                heatmapSequence: !!heatmapSequence,
+                heatmapTitle: !!heatmapTitle,
+                heatmapStats: !!heatmapStats
+            });
+            
+            if (!heatmapSequence || !heatmapTitle || !heatmapStats) {
+                console.error('Required elements not found for sequence heatmap');
+                return;
+            }
+            
+            // Create binding site map for quick lookup
+            const bindingMap = {};
+            bindingSites.forEach(site => {
+                bindingMap[site.position] = site.probability || 0.5;
+            });
+            
+            // Update title
+            heatmapTitle.textContent = 'Amino Acid Sequence';
+            
+            // Generate heatmap HTML
+            let heatmapHTML = '';
+            for (let i = 0; i < sequence.length; i++) {
+                const position = i + 1;
+                const aminoAcid = sequence[i];
+                const probability = bindingMap[position] || 0;
+                const intensity = Math.min(probability * 255, 255);
+                const backgroundColor = probability > 0 ? `rgba(255, 0, 0, ${probability})` : 'rgba(255, 255, 255, 0.1)';
+                
+                heatmapHTML += `<span class="amino-acid" style="background-color: ${backgroundColor}; color: ${probability > 0.5 ? 'white' : 'rgba(255, 255, 255, 0.8)'};" title="Position ${position}: ${aminoAcid} (${(probability * 100).toFixed(1)}%)">${aminoAcid}</span>`;
+                
+                // Add line break every 60 characters
+                if ((i + 1) % 60 === 0) {
+                    heatmapHTML += '<br>';
+                }
+            }
+            
+            heatmapSequence.innerHTML = heatmapHTML;
+            
+            // Update stats
+            const bindingSiteCount = bindingSites.length;
+            const coverage = ((bindingSiteCount / sequence.length) * 100).toFixed(1);
+            heatmapStats.textContent = `${bindingSiteCount} binding sites identified (${coverage}% coverage)`;
+        }
+        
+        function updateCNNPlot(result) {
+            const cnnPlot = document.getElementById('cnnPlot');
+            if (cnnPlot && result.cnn_plot) {
+                cnnPlot.src = 'data:image/png;base64,' + result.cnn_plot;
+                cnnPlot.style.display = 'block';
+            }
+        }
+        
+        function update3DStructure(sequence, bindingSites) {
+            console.log('update3DStructure called', sequence, bindingSites);
+            // This would be implemented with 3Dmol.js
+            // For now, just log that it was called
+        }
+        
     </script>
 </body>
 </html>

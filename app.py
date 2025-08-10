@@ -21,11 +21,6 @@ warnings.filterwarnings("ignore")
 
 app = Flask(__name__)
 
-# Sample SMILES database
-SMILES_DATABASE = {
-    "NAD": "NC(=O)C1=CC=C[N+](=C1)[C@@H]1O[C@H](COP(=O)([O-])OP(=O)([O-])OC[C@H]2O[C@H]([C@H]([C@@H]2O)O)N2C=NC3=C(N)N=CN=C32)[C@@H]([C@H]1O)O",
-}
-
 # Available models
 MODELS = ["FastCNNBindingPredictor"]
 
@@ -252,7 +247,7 @@ def create_plot(
 
 @app.route("/")
 def index():
-    return render_template("index.html", smiles_db=SMILES_DATABASE, models=MODELS)
+    return render_template("index.html", models=MODELS)
 
 
 @app.route("/predict", methods=["POST"])
@@ -260,14 +255,10 @@ def predict():
     try:
         data = request.get_json()
         sequence = data.get("sequence", "").strip()
-        selected_smiles = data.get("smiles", "")
         model = data.get("model", "ESM-2 (Real)")
 
         if not sequence:
             return jsonify({"error": "Please enter an amino acid sequence"})
-
-        if not selected_smiles or selected_smiles not in SMILES_DATABASE:
-            return jsonify({"error": "Please select a valid SMILES compound"})
 
         print(sequence)
 
@@ -284,7 +275,7 @@ def predict():
 
         # Generate random binding sites for visualization
         seq_length = len(sequence)
-        np.random.seed(len(sequence) + len(selected_smiles) + hash(model) % 1000)
+        np.random.seed(len(sequence) + hash(model) % 1000)
 
         # Create random binding sites (5-15% of sequence length)
         num_binding_sites = max(1, int(seq_length * np.random.uniform(0.05, 0.15)))
@@ -321,7 +312,7 @@ def predict():
             concentrations,
             response,
             sequence,
-            selected_smiles,
+            "Target Compound",
             model,
             ic50,
             binding_sites,
@@ -329,7 +320,7 @@ def predict():
 
         # Create CNN-style binding site plot
         cnn_plot_data = create_cnn_binding_plot(
-            sequence, binding_sites, selected_smiles
+            sequence, binding_sites, "Target Compound"
         )
 
         # Generate summary
@@ -343,7 +334,7 @@ def predict():
                 "cnn_plot": cnn_plot_data,
                 "ic50": f"{ic50*1e9:.2f} nM",
                 "model_used": model,
-                "compound": selected_smiles,
+                "compound": "Target Compound",
                 "binding_sites": binding_sites,
                 "binding_summary": binding_summary,
             }
