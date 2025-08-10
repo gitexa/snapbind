@@ -97,6 +97,27 @@ def predict():
         # Select a random protein structure for visualization
         random_structure = random.choice(PROTEIN_STRUCTURES)
 
+        # Prepare raw output for copying
+        raw_output = {
+            "input_sequence": sequence,
+            "sequence_length": len(sequence),
+            "model_used": "FastCNN",
+            "device_used": str(device),
+            "binding_threshold": 0.5,
+            "total_binding_sites": len(binding_sites),
+            "binding_sites": binding_sites,
+            "probabilities_array": (
+                probabilities.tolist()
+                if hasattr(probabilities, "tolist")
+                else list(probabilities)
+            ),
+            "summary": binding_summary,
+            "protein_structure": {
+                "name": random_structure["name"],
+                "description": random_structure["description"],
+            },
+        }
+
         return jsonify(
             {
                 "success": True,
@@ -110,6 +131,7 @@ def predict():
                     "url": f"/protein_structure/{random_structure['name']}",
                     "description": random_structure["description"],
                 },
+                "raw_output": raw_output,
             }
         )
 

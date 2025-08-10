@@ -881,6 +881,153 @@
             color: rgba(255, 255, 255, 0.5);
             font-family: 'JetBrains Mono', monospace;
         }
+        
+        /* Raw Output Box Styles */
+        .raw-output-container {
+            margin-top: 20px;
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .raw-output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .raw-output-header h3 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .raw-output-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .raw-output-controls button {
+            padding: 6px 12px;
+            font-size: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .copy-btn {
+            background: #007bff;
+            color: white;
+        }
+        
+        .copy-btn:hover {
+            background: #0056b3;
+        }
+        
+        .download-btn {
+            background: #28a745;
+            color: white;
+        }
+        
+        .download-btn:hover {
+            background: #1e7e34;
+        }
+        
+        .close-btn {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .close-btn:hover {
+            background: #c82333;
+        }
+        
+        .raw-output-content {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .raw-output-content pre {
+            margin: 0;
+            color: #e0e0e0;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Scrollbar styling for raw output */
+        .raw-output-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .raw-output-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        .raw-output-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        .raw-output-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Show Raw Output Button */
+        .show-raw-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .show-raw-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .show-raw-btn.visible {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1013,6 +1160,21 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+            
+            <!-- Raw Output Box -->
+            <div class="raw-output-container" id="rawOutputContainer" style="display: none;">
+                <div class="raw-output-header">
+                    <h3>🔧 Raw Prediction Output</h3>
+                    <div class="raw-output-controls">
+                        <button onclick="copyRawOutput()" class="copy-btn">📋 Copy to Clipboard</button>
+                        <button onclick="downloadRawOutput()" class="download-btn">💾 Download JSON</button>
+                        <button onclick="toggleRawOutput()" class="close-btn">✕</button>
+                    </div>
+                </div>
+                <div class="raw-output-content">
+                    <pre id="rawOutputText">Raw prediction data will appear here...</pre>
                 </div>
             </div>
         </div>
@@ -1682,6 +1844,18 @@ M  END`
             
             // Update 3D structure with binding sites
             update3DStructure(inputData.sequence, result.binding_sites || []);
+            
+            // Store and show raw output
+            if (result.raw_output) {
+                window.currentRawOutput = result.raw_output;
+                showRawOutput(result.raw_output);
+                
+                // Show the floating button
+                const showRawBtn = document.getElementById('showRawBtn');
+                if (showRawBtn) {
+                    showRawBtn.classList.add('visible');
+                }
+            }
         }
         
         function showError(errorMessage) {
@@ -2450,6 +2624,141 @@ M  END`
             });
         }
         
+        // Raw Output Functions
+        function showRawOutput(rawData) {
+            const container = document.getElementById('rawOutputContainer');
+            const textElement = document.getElementById('rawOutputText');
+            
+            if (container && textElement) {
+                // Format the JSON with proper indentation
+                const formattedJson = JSON.stringify(rawData, null, 2);
+                textElement.textContent = formattedJson;
+                container.style.display = 'block';
+                
+                // Scroll to the raw output box
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+        
+        function toggleRawOutput() {
+            const container = document.getElementById('rawOutputContainer');
+            const button = document.getElementById('showRawBtn');
+            
+            if (container) {
+                const isVisible = container.style.display !== 'none';
+                container.style.display = isVisible ? 'none' : 'block';
+                
+                // Update button text
+                if (button) {
+                    button.textContent = isVisible ? '📋 Show Raw Output' : '❌ Hide Raw Output';
+                }
+                
+                // Scroll to the raw output if showing
+                if (!isVisible) {
+                    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        }
+        
+        function copyRawOutput() {
+            const textElement = document.getElementById('rawOutputText');
+            if (textElement && textElement.textContent) {
+                // Use the modern clipboard API
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(textElement.textContent).then(() => {
+                        showCopyFeedback('Copied to clipboard!');
+                    }).catch(err => {
+                        console.error('Failed to copy to clipboard:', err);
+                        fallbackCopyToClipboard(textElement.textContent);
+                    });
+                } else {
+                    fallbackCopyToClipboard(textElement.textContent);
+                }
+            }
+        }
+        
+        function fallbackCopyToClipboard(text) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                showCopyFeedback('Copied to clipboard!');
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                showCopyFeedback('Copy failed. Please select and copy manually.', true);
+            }
+            
+            document.body.removeChild(textArea);
+        }
+        
+        function showCopyFeedback(message, isError = false) {
+            // Create temporary feedback element
+            const feedback = document.createElement('div');
+            feedback.textContent = message;
+            feedback.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${isError ? '#dc3545' : '#28a745'};
+                color: white;
+                padding: 10px 15px;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: 500;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                transition: opacity 0.3s ease;
+            `;
+            
+            document.body.appendChild(feedback);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                feedback.style.opacity = '0';
+                setTimeout(() => {
+                    if (feedback.parentNode) {
+                        feedback.parentNode.removeChild(feedback);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        function downloadRawOutput() {
+            if (window.currentRawOutput) {
+                const dataStr = JSON.stringify(window.currentRawOutput, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `snapbind_prediction_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up the blob URL
+                URL.revokeObjectURL(link.href);
+                
+                showCopyFeedback('File downloaded successfully!');
+            } else {
+                showCopyFeedback('No prediction data available to download.', true);
+            }
+        }
+        
     </script>
+    
+    <!-- Floating Show Raw Output Button -->
+    <button class="show-raw-btn" id="showRawBtn" onclick="toggleRawOutput()">
+        📋 Show Raw Output
+    </button>
 </body>
 </html>
