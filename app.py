@@ -22,17 +22,17 @@ MODELS = ["FastCNNBindingPredictor"]
 PROTEIN_STRUCTURES = [
     {
         "name": "crambin.pdb",
-        "path": "/Users/alex-mac/Programming/hackathon/outputs/crambin.pdb",
+        "path": "outputs/crambin.pdb",
         "description": "Crambin - Small plant protein (46 residues)",
     },
     {
         "name": "ubiquitin.pdb",
-        "path": "/Users/alex-mac/Programming/hackathon/outputs/ubiquitin.pdb",
+        "path": "outputs/ubiquitin.pdb",
         "description": "Ubiquitin - Regulatory protein (76 residues)",
     },
     {
         "name": "test_protein_2.pdb",
-        "path": "/Users/alex-mac/Programming/hackathon/outputs/test_protein_2.pdb",
+        "path": "outputs/test_protein_2.pdb",
         "description": "Reference protein structure",
     },
 ]
@@ -49,9 +49,7 @@ def predict():
         data = request.get_json()
         sequence = data.get("sequence", "").strip()
         # model = data.get("model", "ESM-2 (Real)")
-        path_model_ckp = (
-            "/Users/alex-mac/Programming/hackathon/checkpoinits/best_binding_model.pth"
-        )
+        path_model_ckp = "checkpoints/best_binding_model.pth"
         device = torch.device(
             "mps"
             if torch.backends.mps.is_available()
