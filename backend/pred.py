@@ -1,3 +1,39 @@
+"""
+FastCNN Protein Binding Site Prediction Backend
+
+This module implements a Fast Convolutional Neural Network (FastCNN) for predicting
+protein binding sites from amino acid sequences. The model uses residual blocks
+and various convolutional layers to learn sequence patterns associated with
+binding affinity.
+
+Key Components:
+    - ResidualConvBlock: Residual convolutional block with skip connections
+    - FastCNNBindingPredictor: Main CNN architecture for binding prediction
+    - ProteinSequenceDataset: Dataset handler for protein sequences
+    - Training utilities: Model training, evaluation, and persistence
+
+Architecture:
+    The FastCNN model uses:
+    - Embedding layer for amino acid encoding
+    - Multiple residual convolutional blocks
+    - Batch normalization and dropout for regularization
+    - Global average pooling and fully connected layers
+    - Binary classification output (binding/non-binding)
+
+Usage:
+    from backend.pred import get_binding_arrays
+
+    probabilities, sequence_array = get_binding_arrays(
+        protein_sequence="MKWVTFISLLFLFSSAYSRGVFRRDAHKSEVAHRFKDLGE",
+        model_path="checkpoinits/best_binding_model.pth",
+        device="cuda"
+    )
+
+Author: SnapBind Team
+Version: 1.0.0
+License: MIT
+"""
+
 import ast
 import os
 import random
@@ -21,6 +57,20 @@ from tqdm import tqdm
 
 
 class ResidualConvBlock(nn.Module):
+    """
+    Residual Convolutional Block with skip connections.
+
+    This block implements a residual connection around two 1D convolutional layers,
+    helping to mitigate the vanishing gradient problem in deeper networks.
+
+    Args:
+        channels (int): Number of input and output channels
+        dropout (float): Dropout probability for regularization (default: 0.1)
+
+    Architecture:
+        Input -> Conv1D -> BatchNorm -> ReLU -> Dropout -> Conv1D -> BatchNorm -> Add(residual) -> ReLU
+    """
+
     def __init__(self, channels, dropout=0.1):
         super().__init__()
         self.conv1 = nn.Conv1d(channels, channels, 3, padding=1)
@@ -30,6 +80,15 @@ class ResidualConvBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
+        """
+        Forward pass through the residual block.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, channels, sequence_length)
+
+        Returns:
+            torch.Tensor: Output tensor with same shape as input
+        """
         residual = x
         x = F.relu(self.bn1(self.conv1(x)))
         x = self.dropout(x)
@@ -38,12 +97,33 @@ class ResidualConvBlock(nn.Module):
 
 
 class SelfAttention1D(nn.Module):
+    """
+    Self-Attention mechanism for 1D sequences.
+
+    Applies multi-head self-attention to capture long-range dependencies
+    in protein sequences, allowing the model to focus on relevant parts
+    of the sequence for binding site prediction.
+
+    Args:
+        embed_dim (int): Embedding dimension
+        num_heads (int): Number of attention heads (default: 8)
+    """
+
     def __init__(self, embed_dim, num_heads=8):
         super().__init__()
         self.attention = nn.MultiheadAttention(embed_dim, num_heads, batch_first=True)
         self.norm = nn.LayerNorm(embed_dim)
 
     def forward(self, x):
+        """
+        Forward pass through self-attention.
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, channels, length)
+
+        Returns:
+            torch.Tensor: Attention-processed tensor with same shape
+        """
         # x: (B, channels, L) -> (B, L, channels)
         x = x.transpose(1, 2)
         attn_out, _ = self.attention(x, x, x)
@@ -52,6 +132,36 @@ class SelfAttention1D(nn.Module):
 
 
 class FastCNNBindingPredictor(nn.Module):
+    """
+    Fast Convolutional Neural Network for Protein Binding Site Prediction.
+
+    This model combines convolutional layers, residual blocks, and self-attention
+    to predict binding sites in protein sequences. It takes amino acid sequences
+    as input and outputs per-residue binding probabilities.
+
+    Architecture Overview:
+        1. Amino acid embedding layer
+        2. Initial 1D convolution for feature extraction
+        3. Multiple residual convolutional blocks
+        4. Self-attention layer for long-range dependencies
+        5. Additional convolutional layers with different kernel sizes
+        6. Global average pooling and classification head
+
+    Args:
+        vocab_size (int): Size of amino acid vocabulary (default: 22)
+        embed_dim (int): Embedding dimension (default: 64)
+        hidden_dim (int): Hidden layer dimension (default: 128)
+        dropout (float): Dropout probability (default: 0.1)
+
+    Input:
+        - Protein sequences as integer-encoded amino acids
+        - Shape: (batch_size, sequence_length)
+
+    Output:
+        - Per-residue binding probabilities
+        - Shape: (batch_size, sequence_length)
+    """
+
     def __init__(
         self,
         vocab_size: int = 22,
@@ -138,7 +248,29 @@ class FastCNNBindingPredictor(nn.Module):
 
 
 def load_trained_model(model_path="best_binding_model2.pth", device="mps"):
-    """Load the trained binding site prediction model."""
+    """
+    Load a trained FastCNN model from checkpoint file.
+
+    This function initializes a FastCNNBindingPredictor model with the same
+    architecture used during training and loads the saved weights from a
+    checkpoint file.
+
+    Args:
+        model_path (str): Path to the model checkpoint file (.pth)
+        device (str or torch.device): Device to load the model on
+
+    Returns:
+        FastCNNBindingPredictor: Loaded model in evaluation mode
+
+    Raises:
+        FileNotFoundError: If the model checkpoint file doesn't exist
+        RuntimeError: If the model architecture doesn't match saved weights
+
+    Note:
+        - Model architecture must match the training configuration
+        - Checkpoint should contain 'model_state_dict' and 'val_f1' keys
+        - Model is automatically set to evaluation mode
+    """
 
     # Initialize model with same architecture as training
     model = FastCNNBindingPredictor(
@@ -158,7 +290,27 @@ def load_trained_model(model_path="best_binding_model2.pth", device="mps"):
 
 
 def sequence_to_tensor(sequence):
-    """Convert amino acid sequence to tensor."""
+    """
+    Convert amino acid sequence to PyTorch tensor.
+
+    Maps each amino acid in the sequence to its corresponding integer index
+    based on a predefined vocabulary. Unknown amino acids are mapped to index 21.
+
+    Args:
+        sequence (str): Protein sequence using single-letter amino acid codes
+
+    Returns:
+        torch.Tensor: Integer tensor of shape (1, sequence_length)
+
+    Example:
+        >>> tensor = sequence_to_tensor("MKW")
+        >>> print(tensor)  # [[10, 8, 19]]
+
+    Note:
+        - Standard 20 amino acids are mapped to indices 0-19
+        - Special tokens: 'X' (unknown) -> 20, padding -> 21
+        - Output tensor has batch dimension of 1 for single sequence
+    """
     AA_TO_IDX = {
         "A": 0,
         "C": 1,
@@ -191,6 +343,31 @@ def sequence_to_tensor(sequence):
 def get_binding_arrays(
     protein_sequence, model_path="best_binding_model.pth", device=None
 ):
+    """
+    Main function for predicting binding sites in a protein sequence.
+
+    This function loads a trained FastCNN model and predicts binding site
+    probabilities for each amino acid residue in the input sequence.
+
+    Args:
+        protein_sequence (str): Amino acid sequence using single-letter codes
+        model_path (str): Path to the trained model checkpoint file
+        device (torch.device, optional): Computing device (auto-detected if None)
+
+    Returns:
+        tuple: A tuple containing:
+            - probabilities (numpy.ndarray): Per-residue binding probabilities [0-1]
+            - sequence_array (numpy.ndarray): Integer-encoded sequence for reference
+
+    Example:
+        >>> probabilities, sequence = get_binding_arrays("MKWVTFISLF")
+        >>> print(f"Binding probability at position 5: {probabilities[4]:.3f}")
+
+    Note:
+        - Input sequence should contain only standard amino acid codes
+        - Unknown amino acids are mapped to index 21
+        - Model expects sequences of reasonable length (typically 20-1000 residues)
+    """
 
     # Auto-detect device if not provided
     if device is None:
@@ -347,10 +524,10 @@ if __name__ == "__main__":
         else "cuda" if torch.cuda.is_available() else "cpu"
     )
 
-probabilities, sequence_array = get_binding_arrays(
-    protein_sequence=sequence,
-    model_path=path_model_ckp,
-    device=device,
-)
+    probabilities, sequence_array = get_binding_arrays(
+        protein_sequence=sequence,
+        model_path=path_model_ckp,
+        device=device,
+    )
 
-plot_binding_probabilities(probabilities, sequence_array)
+    plot_binding_probabilities(probabilities, sequence_array)

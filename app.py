@@ -1,3 +1,35 @@
+"""
+SnapBind - Protein Binding Site Prediction Web Application
+
+This Flask application provides a web interface for predicting protein binding sites
+using a FastCNN model. It features interactive visualization, 3D protein structure
+rendering, and comprehensive data export capabilities.
+
+Author: SnapBind Team
+Version: 1.0.0
+License: MIT
+
+Dependencies:
+    - Flask: Web framework
+    - PyTorch: Machine learning framework
+    - NumPy: Numerical computing
+    - 3Dmol.js: 3D molecular visualization (frontend)
+    - Chart.js: Interactive plotting (frontend)
+
+Features:
+    - Real-time binding site prediction
+    - Interactive amino acid sequence heatmaps
+    - 3D protein structure visualization
+    - Raw prediction data export (JSON/clipboard)
+    - Responsive web interface
+    - Multiple protein structure support
+
+Usage:
+    python app.py
+
+    Then navigate to http://localhost:5004 in your browser.
+"""
+
 import base64
 import io
 import os
@@ -15,10 +47,11 @@ warnings.filterwarnings("ignore")
 
 app = Flask(__name__)
 
-# Available models
+# Available models for prediction
 MODELS = ["FastCNNBindingPredictor"]
 
-# Available protein structures for random selection
+# Available protein structures for 3D visualization
+# These PDB files are used for structural context and visualization
 PROTEIN_STRUCTURES = [
     {
         "name": "crambin.pdb",
@@ -40,11 +73,37 @@ PROTEIN_STRUCTURES = [
 
 @app.route("/")
 def index():
+    """
+    Render the main application page.
+
+    Returns:
+        str: Rendered HTML template with available models
+    """
     return render_template("index.html", models=MODELS)
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    """
+    Predict protein binding sites using FastCNN model.
+
+    Accepts a POST request with JSON payload containing:
+        - sequence (str): Amino acid sequence to analyze
+
+    Returns:
+        JSON response containing:
+            - success (bool): Whether prediction succeeded
+            - chart_data (dict): Data for Chart.js visualization
+            - binding_sites (list): High-confidence binding sites (>0.5 threshold)
+            - binding_summary (str): Human-readable summary
+            - model_used (str): Model identifier
+            - sequence_length (int): Length of input sequence
+            - protein_structure (dict): 3D structure information
+            - raw_output (dict): Complete prediction data for export
+
+    Error Response:
+        JSON with error message if prediction fails
+    """
     try:
         data = request.get_json()
         sequence = data.get("sequence", "").strip()
@@ -59,6 +118,7 @@ def predict():
         if not sequence:
             return jsonify({"error": "Please enter an amino acid sequence"})
 
+        # Get binding site predictions from the FastCNN model
         probabilities, sequence_array = get_binding_arrays(
             protein_sequence=sequence,
             model_path=path_model_ckp,
@@ -77,25 +137,26 @@ def predict():
         }
 
         # Generate binding sites from probabilities
+        # Only include sites with probability > 0.5 (high confidence)
         binding_sites = []
         for i, prob in enumerate(probabilities):
             if prob > 0.5:  # threshold for binding site
                 binding_sites.append(
                     {
-                        "position": i + 1,  # 1-indexed
+                        "position": i + 1,  # 1-indexed position
                         "probability": float(prob),
                         "amino_acid": sequence[i] if i < len(sequence) else "X",
                         "confidence": float(prob),
                     }
                 )
 
-        # Generate summary
+        # Generate human-readable summary
         binding_summary = f"Identified {len(binding_sites)} potential binding sites with high confidence."
 
-        # Select a random protein structure for visualization
+        # Select a random protein structure for 3D visualization
         random_structure = random.choice(PROTEIN_STRUCTURES)
 
-        # Prepare raw output for copying
+        # Prepare comprehensive raw output for export/download
         raw_output = {
             "input_sequence": sequence,
             "sequence_length": len(sequence),
@@ -140,7 +201,16 @@ def predict():
 
 @app.route("/model_status")
 def model_status():
-    """Check if ESM model is loaded and ready"""
+    """
+    Check if ESM model is loaded and ready for predictions.
+
+    Returns:
+        JSON response containing:
+            - model_loaded (bool): Whether the model is loaded
+            - device (str): Device being used (cpu/cuda/mps)
+            - model_type (str): Type of model loaded
+            - error (str, optional): Error message if loading failed
+    """
     try:
         predictor = get_predictor()
         is_loaded = predictor.model is not None
@@ -159,9 +229,23 @@ def model_status():
 
 @app.route("/protein_structure/<filename>")
 def serve_protein_structure(filename):
-    """Serve protein structure files"""
+    """
+    Serve protein structure files (PDB format) for 3D visualization.
+
+    Args:
+        filename (str): Name of the PDB file to serve
+
+    Returns:
+        File response: PDB file with chemical/x-pdb MIME type
+        JSON error: If file not found or error occurs
+
+    Supported files:
+        - crambin.pdb: Small plant protein
+        - ubiquitin.pdb: Regulatory protein
+        - test_protein_2.pdb: Reference structure
+    """
     try:
-        # Find the structure file
+        # Find the structure file in the PROTEIN_STRUCTURES list
         structure_path = None
         for structure in PROTEIN_STRUCTURES:
             if structure["name"] == filename:
@@ -195,7 +279,21 @@ def serve_protein_structure(filename):
 
 @app.route("/test_protein_files")
 def test_protein_files():
-    """Test endpoint to check available protein files"""
+    """
+    Test endpoint to check availability and status of protein structure files.
+
+    Useful for debugging and verifying that all required PDB files are present
+    and accessible by the application.
+
+    Returns:
+        JSON response containing:
+            - protein_files (list): List of file information including:
+                - name (str): Filename
+                - path (str): Full path to file
+                - exists (bool): Whether file exists
+                - size (int): File size in bytes
+                - description (str): Human-readable description
+    """
     results = []
     for structure in PROTEIN_STRUCTURES:
         full_path = (
@@ -220,7 +318,21 @@ def test_protein_files():
 
 @app.route("/random_protein")
 def get_random_protein():
-    """Get a random protein structure info"""
+    """
+    Get information about a randomly selected protein structure.
+
+    Used by the frontend to display different protein structures
+    for variety in 3D visualization.
+
+    Returns:
+        JSON response containing:
+            - success (bool): Whether operation succeeded
+            - protein_structure (dict): Structure information including:
+                - name (str): Filename
+                - url (str): Endpoint URL to fetch the structure
+                - description (str): Human-readable description
+            - error (str, optional): Error message if failed
+    """
     try:
         random_structure = random.choice(PROTEIN_STRUCTURES)
         return jsonify(
@@ -238,4 +350,14 @@ def get_random_protein():
 
 
 if __name__ == "__main__":
+    """
+    Run the Flask development server.
+
+    Configuration:
+        - Debug mode: Enabled for development
+        - Port: 5004 (to avoid conflicts with other services)
+        - Host: 127.0.0.1 (localhost only)
+
+    Note: For production deployment, use a proper WSGI server like Gunicorn.
+    """
     app.run(debug=True, port=5004)
