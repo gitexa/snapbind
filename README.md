@@ -6,7 +6,7 @@
 
 **Advanced Protein Binding Site Prediction with Deep Learning**
 
-SnapBind is a sophisticated web application that predicts protein binding sites using a Fast Convolutional Neural Network (FastCNN). The application features an interactive web interface with real-time visualization, 3D protein structure rendering, and comprehensive data export capabilities.
+SnapBind is a web application that predicts protein binding sites using a Fast Convolutional Neural Network (FastCNN). The application features an interactive web interface with real-time visualization, 3D protein structure rendering, and comprehensive data export capabilities.
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-orange.svg)](https://pytorch.org)
