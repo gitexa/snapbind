@@ -1,6 +1,6 @@
 # SnapBind 🧬
 
-**2nd place MIT AI Hackathon by HackNation in VC category (2025)**
+**[2nd place Global AI Hackathon in VC category by MIT Sloan AI Club and HackNation (2025)][https://hack-nation.ai/]**
 
 ![SnapBind Demo](video/snapbind.gif)
 
